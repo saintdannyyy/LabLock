@@ -7,11 +7,23 @@ to anything else.
 
 ## Project status
 
-**Phase 1 (this build): core browser + whitelist enforcement — done.**
-Phases 2–4 (window lockdown, shell replacement + keyboard hook, admin escape
-hatch + watchdog) are **not yet implemented**. Right now this is a normal,
-resizable, closable window — it does **not** lock down the machine yet. Do
-not deploy this to a lab machine expecting kiosk lockdown; that's Phases 2–4.
+**Phase 1 (core browser + whitelist enforcement) — done.**
+**Phase 2 (window lockdown + startup registration) — done.**
+Phase 3 (shell replacement + keyboard hook + Task Manager policy) and Phase 4
+(admin escape hatch + watchdog) are **not yet implemented**.
+
+Where things stand now:
+
+- The window is a **kiosk window in packaged builds** — fullscreen, no frame,
+  no window controls, always on top, close events swallowed (except during a
+  Windows session end), DevTools disabled, app menu stripped.
+- The app **registers to launch at logon** via a Scheduled Task (or Run key)
+  using the scripts in `installer/`.
+- There is **no escape hatch yet** (that's Phase 4): once running as a kiosk
+  window, the only ways out are killing the process or logging off/shutting
+  down. Do not deploy to a lab machine expecting a full lockdown yet —
+  Phase 3's shell replacement, keyboard hooks, and Phase 4's admin escape are
+  what complete the posture.
 
 ## Setup & build
 
@@ -109,7 +121,56 @@ All whitelist matching logic lives in one place, `src/main/whitelist.ts`,
 imported by every interception point — there's no second copy of the rules
 to drift out of sync.
 
-## Manual test checklist (Phase 1)
+## Phase 2 — Window lockdown & startup
+
+### Window behavior
+
+In a **packaged build** (`app.isPackaged`), the window is created locked:
+`kiosk: true` (fullscreen), `frame: false`, `closable/minimizable/maximizable/
+resizable: false`, `alwaysOnTop: true`. In a **dev run** (`electron .`), the
+window stays a normal resizable window so iteration is painless — the real
+locked window can be exercised in dev by launching with `LOCKDOWN_KIOSK=1`.
+
+In kiosk mode:
+
+- `Menu.setApplicationMenu(null)` removes the whole app menu, so the default
+  accelerators (Ctrl+W, Ctrl+Shift+I, Alt+F4 via menu) are gone.
+- `webPreferences.devTools: false` disables DevTools on every WebContents
+  (toolbar, content, and the untrusted site view).
+- The window's `close` event is swallowed (`event.preventDefault()`) unless
+  `setAllowClose(true)` was called. Today the only caller is the Windows
+  session-end handler; the Phase 4 admin escape hatch will be the other.
+
+**Shutdown/logoff is never blocked.** On Windows, `app`'s `query-session-end`
+event fires before the window closes during shutdown/logoff; the app calls
+`setAllowClose(true)` in response so the kiosk can't hang a machine that's
+trying to shut down. (Note: electron.d.ts v43 doesn't type these events on
+`app`, so the handler is registered via a cast — see the comment in
+`src/main/main.ts`.)
+
+**Escape-hatch caveat until Phase 4:** in a kiosk window there is currently no
+supported way to exit to a desktop — killing the process is the only exit.
+`LOCKDOWN_KIOSK=1` testing is safe in dev because killing the launching
+process still works; don't leave a lab machine sitting in that state.
+
+### Launch at startup
+
+`installer/register-startup.ps1` creates a Scheduled Task that runs the app
+at the current user's logon (no admin needed). `-UseRunKey` writes the HKCU
+Run key instead; `-AllUsers` registers for any user (requires admin).
+`installer/unregister-startup.ps1` removes either. See `installer/README.md`.
+
+Windows-version notes for Phase 2:
+
+- Scheduled Tasks and the Run key behave the same on Windows 10 and 11, and
+  on Home and Pro editions.
+- Per-user registrations follow the user, not the machine — on a lab machine
+  where students use their own accounts, register per account or use
+  `-AllUsers`.
+
+## Manual test checklist
+
+### Phase 1 — whitelisting (dev run)
 
 Run `npm start`, then walk through:
 
@@ -138,20 +199,44 @@ Run `npm start`, then walk through:
 8. **State preservation** — leaving a site via Home and re-clicking the same
    tile resumes the same view; clicking a different tile does a fresh load.
 
+### Phase 2 — window lockdown & startup
+
+1. **Dev window unchanged** — `npm start` (no env vars) still shows a normal,
+   resizable, closable window.
+2. **Kiosk window** — launch with `LOCKDOWN_KIOSK=1` (or a packaged build):
+   window is fullscreen with no title bar/controls, no app menu, and stays on
+   top.
+3. **Cannot close** — Alt+F4 and the window's close path do not close it; the
+   process must be killed (safe in dev since there's no watchdog yet).
+4. **DevTools absent** — in kiosk mode, Ctrl+Shift+I does nothing and no menu
+   offers DevTools.
+5. **Session-end not blocked** — from a kiosk run, Start → Shut down / Log off
+   completes instead of hanging (test in a disposable session).
+6. **Startup registration** — run
+   `installer/register-startup.ps1 -AppExe "<app exe>"`, log off and back on,
+   confirm the app launches automatically; then
+   `installer/unregister-startup.ps1` and confirm it no longer does.
+7. **Run-key alternative** — `register-startup.ps1 -UseRunKey`, verify the
+   value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, then
+   unregister and confirm removal.
+
 ## Windows version notes
 
-Phase 1 has no known Windows-version-specific behavior — it's a standard
-Electron app and should run identically on Windows 10/11, Home/Pro. Version
-and edition differences become relevant starting in Phase 2/3 (Scheduled
-Task behavior, `Winlogon\Shell` replacement, low-level keyboard hooks,
+Phase 1 has no Windows-version-specific behavior. Phase 2's lockdown flags
+and startup registration behave the same on Windows 10/11 and Home/Pro; the
+per-user vs any-user registration distinction (above) is the main gotcha.
+Version/edition differences become more significant in Phase 3 (Scheduled
+Task edge cases, `Winlogon\Shell` replacement, low-level keyboard hooks,
 `DisableTaskMgr` policy) — those will be documented when those phases are
 built and tested.
 
-## Security scope (Phase 1 only)
+## Security scope (through Phase 2)
 
-This build only enforces the site whitelist inside a normal, unlocked
-window. It does **not** yet: prevent the window from being closed/minimized,
-survive process kill, replace the Windows shell, block Alt+Tab/Win
-key/Task Manager, or provide an admin escape hatch — all of that is
-Phases 2–4, not yet implemented. Treat this build as a whitelisted-browsing
-prototype, not a deployable kiosk lockdown.
+This build enforces the site whitelist inside a kiosk-mode window that resists
+closing and launches at logon. It does **not** yet: replace the Windows shell
+(so the desktop/taskbar/Start menu are still present — a student can reach the
+Task Manager and other tools), intercept global keyboard shortcuts (Alt+Tab,
+the Win key, Ctrl+Alt+Del are all still functional), survive process kill
+(no watchdog), or offer an admin escape hatch. All of that is Phases 3–4.
+Phase 2 deters casual window-manipulation; it is explicitly NOT resistant to a
+user with local admin rights, physical access, or a bootable USB.
