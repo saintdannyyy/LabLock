@@ -1,6 +1,6 @@
 @import url('shared.css');
 
-/* Home grid — full viewport */
+/* Home — Google.com / New Tab style */
 html, body {
   height: 100%;
   overflow-y: auto;
@@ -10,67 +10,64 @@ html, body {
 .home-container {
   display: flex;
   flex-direction: column;
+  align-items: center;
   min-height: 100%;
-  padding: var(--space-6) var(--space-8);
+  padding: var(--space-12) var(--space-6) var(--space-10);
 }
 
 /* Header */
 .home-header {
-  margin-bottom: var(--space-6);
+  text-align: center;
+  margin-bottom: var(--space-12);
 }
 
-.home-title {
-  font-size: 28px;
-  font-weight: 600;
-  line-height: 36px;
-  color: var(--color-on-background);
-  letter-spacing: -0.25px;
+.home-logo {
+  font-size: 44px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -1px;
+  user-select: none;
 }
 
 .home-subtitle {
-  margin-top: var(--space-1);
+  margin-top: var(--space-3);
   font-size: 14px;
   line-height: 20px;
-  color: var(--color-on-surface-variant);
+  color: var(--color-text-secondary);
 }
 
-/* Grid */
+/* Grid — Google apps launcher layout */
 #grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: var(--space-5);
-  flex: 1;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: var(--space-6) var(--space-5);
+  width: 100%;
+  max-width: 760px;
 }
 
-/* Tile — elevated card */
+/* Tile */
 .tile {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-6) var(--space-4);
+  padding: var(--space-4) var(--space-2);
   border: none;
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-elevation-1);
+  background: transparent;
   cursor: pointer;
   font-family: inherit;
   text-decoration: none;
   color: inherit;
-  transition: box-shadow var(--motion-duration-short3) var(--motion-easing-standard),
-              transform var(--motion-duration-short2) var(--motion-easing-standard);
-  min-height: 140px;
-  justify-content: center;
+  transition: background var(--duration-short) var(--ease-standard);
 }
 
 .tile:hover {
-  box-shadow: var(--shadow-elevation-3);
-  transform: translateY(-2px);
+  background: var(--color-surface-hover);
 }
 
 .tile:active {
-  box-shadow: var(--shadow-elevation-1);
-  transform: translateY(0);
+  background: var(--color-surface-variant);
 }
 
 .tile:focus-visible {
@@ -78,36 +75,37 @@ html, body {
   outline-offset: 2px;
 }
 
-/* Tile icon */
+/* Tile icon — rounded square, like the app launcher */
 .tile-icon {
   width: 64px;
   height: 64px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   object-fit: cover;
-  box-shadow: var(--shadow-elevation-1);
+  box-shadow: var(--shadow-1);
 }
 
+/* Fallback icon — colored rounded square with first letter */
 .tile-icon-fallback {
   width: 64px;
   height: 64px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-primary-container);
-  color: var(--color-on-primary-container);
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
+  background: var(--tile-blue);
+  color: #ffffff;
+  font-size: 30px;
+  font-weight: 500;
+  box-shadow: var(--shadow-1);
 }
 
 /* Tile name */
 .tile-name {
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
   text-align: center;
-  color: var(--color-on-surface);
+  color: var(--color-text);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -118,60 +116,26 @@ html, body {
 .empty-state {
   grid-column: 1 / -1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
-  padding: var(--space-16);
-  color: var(--color-on-surface-variant);
+  min-height: 160px;
+  padding: var(--space-12);
+  color: var(--color-text-secondary);
   text-align: center;
-}
-
-.empty-state-icon {
-  font-size: 48px;
-  margin-bottom: var(--space-4);
-  opacity: 0.5;
-}
-
-.empty-state-text {
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 24px;
-}
-
-/* Loading skeleton */
-.tile.skeleton {
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.tile.skeleton .tile-icon,
-.tile.skeleton .tile-name {
-  background: linear-gradient(90deg, var(--color-surface-variant) 25%, var(--color-outline-variant) 50%, var(--color-surface-variant) 75%);
-  background-size: 200% 100%;
-  animation: skeleton-loading 1.5s infinite;
-}
-
-@keyframes skeleton-loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  font-size: 14px;
+  line-height: 20px;
 }
 
 /* Responsive */
 @media (max-width: 600px) {
   .home-container {
-    padding: var(--space-4);
+    padding: var(--space-8) var(--space-4) var(--space-8);
   }
-  .home-title {
-    font-size: 24px;
-    line-height: 32px;
+  .home-logo {
+    font-size: 34px;
   }
   #grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: var(--space-4);
-  }
-  .tile {
-    padding: var(--space-5) var(--space-3);
-    min-height: 120px;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: var(--space-4) var(--space-3);
   }
 }

@@ -1,65 +1,61 @@
 /* ==========================================================================
-   LabLock — Design Tokens (Material Design 3 inspired)
+   LabLock — Google-style design tokens (Chrome / Google apps / MD3)
+   Light theme only. Mirrors Google's look: white surfaces, #1a73e8 accent,
+   #202124 text, #5f6368 secondary text, #dadce0 borders, #f1f3f4 hover.
    ========================================================================== */
 
-/* Color palette */
 :root {
-  /* Primary - LabLock brand */
-  --color-primary: #1a73e8;
-  --color-primary-container: #d6e4f0;
+  color-scheme: light;
+
+  /* Brand / accent */
+  --google-blue: #4285f4;
+  --color-primary: #1a73e8;        /* Google blue */
+  --color-primary-hover: #1765cc;
+  --color-primary-active: #185abc;
   --color-on-primary: #ffffff;
-  --color-on-primary-container: #002147;
 
-  /* Secondary */
-  --color-secondary: #5c6bc0;
-  --color-secondary-container: #e8eaf6;
-  --color-on-secondary: #ffffff;
-  --color-on-secondary-container: #1a237e;
+  /* Text */
+  --color-text: #202124;           /* Google gray-900 */
+  --color-text-secondary: #5f6368; /* Google gray-600 */
+  --color-text-tertiary: #80868b;
 
-  /* Tertiary */
-  --color-tertiary: #00695c;
-  --color-tertiary-container: #a7ffeb;
-  --color-on-tertiary: #ffffff;
-  --color-on-tertiary-container: #00201b;
+  /* Surfaces */
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f8f9fa;
+  --color-surface-variant: #f1f3f4; /* Google gray-100 */
+  --color-border: #dadce0;          /* Google gray-300 */
 
-  /* Error */
-  --color-error: #ba1a1a;
-  --color-error-container: #ffdad6;
-  --color-on-error: #ffffff;
-  --color-on-error-container: #410002;
+  /* States / error */
+  --color-error: #d93025;           /* Google red */
+  --color-error-bg: #fce8e6;
+  --color-focus-ring: rgba(26, 115, 232, 0.25);
 
-  /* Neutral / Surface */
-  --color-surface: #fefbff;
-  --color-on-surface: #1c1b1f;
-  --color-surface-variant: #e7e2ec;
-  --color-on-surface-variant: #49454f;
-  --color-outline: #79747e;
-  --color-outline-variant: #cac4d0;
+  /* Tile accent palette (Google apps launcher colors) */
+  --tile-blue: #4285f4;
+  --tile-red: #ea4335;
+  --tile-yellow: #fbbc05;
+  --tile-green: #34a853;
 
-  /* Background */
-  --color-background: #fefbff;
-  --color-on-background: #1c1b1f;
+  /* Google logo colors (wordmark) */
+  --logo-blue: #4285f4;
+  --logo-red: #ea4335;
+  --logo-yellow: #fbbc05;
+  --logo-green: #34a853;
 
-  /* Inverse */
-  --color-inverse-surface: #313033;
-  --color-inverse-on-surface: #f4eff4;
-  --color-inverse-primary: #b0cfff;
+  /* Elevation (very subtle, Chrome-like) */
+  --shadow-1: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --shadow-2: 0 1px 3px rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+  --shadow-3: 0 1px 3px rgba(60, 64, 67, 0.3), 0 8px 16px 4px rgba(60, 64, 67, 0.15);
 
-  /* Shadow / Elevation */
-  --shadow-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.12);
-  --shadow-elevation-2: 0 1px 3px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.14);
-  --shadow-elevation-3: 0 3px 6px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.16);
-  --shadow-elevation-4: 0 6px 12px rgba(0, 0, 0, 0.14), 0 8px 24px rgba(0, 0, 0, 0.18);
-
-  /* Border radius */
-  --radius-xs: 4px;
+  /* Radius (MD3 shape scale) */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 28px;
   --radius-full: 9999px;
 
-  /* Spacing scale (4px base) */
+  /* Spacing (4px base) */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -72,120 +68,14 @@
   --space-16: 64px;
 
   /* Typography */
-  --font-family: 'Google Sans', 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-mono: 'Roboto Mono', 'Consolas', monospace;
-
-  --text-display-large: 57px / 64px;
-  --text-display-medium: 45px / 52px;
-  --text-display-small: 36px / 44px;
-  --text-headline-large: 32px / 40px;
-  --text-headline-medium: 28px / 36px;
-  --text-headline-small: 24px / 32px;
-  --text-title-large: 22px / 28px;
-  --text-title-medium: 16px / 24px;
-  --text-title-small: 14px / 20px;
-  --text-body-large: 16px / 24px;
-  --text-body-medium: 14px / 20px;
-  --text-body-small: 12px / 16px;
-  --text-label-large: 14px / 20px;
-  --text-label-medium: 12px / 16px;
-  --text-label-small: 11px / 16px;
+  --font-family: 'Google Sans', 'Google Sans Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Roboto Mono', 'Cascadia Mono', Consolas, monospace;
 
   /* Motion */
-  --motion-easing-standard: cubic-bezier(0.2, 0.0, 0.38, 0.9);
-  --motion-easing-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1.0);
-  --motion-duration-short1: 50ms;
-  --motion-duration-short2: 100ms;
-  --motion-duration-short3: 150ms;
-  --motion-duration-medium1: 200ms;
-  --motion-duration-medium2: 250ms;
-  --motion-duration-long1: 300ms;
-  --motion-duration-long2: 400ms;
-
-  /* Z-index layers */
-  --z-base: 0;
-  --z-raised: 1;
-  --z-dropdown: 100;
-  --z-sticky: 200;
-  --z-modal: 300;
-  --z-toast: 400;
-  --z-tooltip: 500;
-}
-
-/* Dark theme */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-primary: #8ab4f8;
-    --color-primary-container: #174ea6;
-    --color-on-primary: #001f3d;
-    --color-on-primary-container: #d6e4f0;
-
-    --color-secondary: #c5cae9;
-    --color-secondary-container: #3f4e9c;
-    --color-on-secondary: #00195a;
-    --color-on-secondary-container: #e8eaf6;
-
-    --color-tertiary: #64ffda;
-    --color-tertiary-container: #003933;
-    --color-on-tertiary: #001f1b;
-    --color-on-tertiary-container: #a7ffeb;
-
-    --color-error: #ffb4ab;
-    --color-error-container: #690005;
-    --color-on-error: #3d0001;
-    --color-on-error-container: #ffdad6;
-
-    --color-surface: #1c1b1f;
-    --color-on-surface: #e6e1e5;
-    --color-surface-variant: #49454f;
-    --color-on-surface-variant: #cac4d0;
-    --color-outline: #938f99;
-    --color-outline-variant: #49454f;
-
-    --color-background: #1c1b1f;
-    --color-on-background: #e6e1e5;
-
-    --color-inverse-surface: #e6e1e5;
-    --color-inverse-on-surface: #313033;
-    --color-inverse-primary: #1a73e8;
-  }
-}
-
-/* Forced dark (kiosk mode) - overrides prefers-color-scheme */
-[data-theme="dark"] {
-  --color-primary: #8ab4f8;
-  --color-primary-container: #174ea6;
-  --color-on-primary: #001f3d;
-  --color-on-primary-container: #d6e4f0;
-
-  --color-secondary: #c5cae9;
-  --color-secondary-container: #3f4e9c;
-  --color-on-secondary: #00195a;
-  --color-on-secondary-container: #e8eaf6;
-
-  --color-tertiary: #64ffda;
-  --color-tertiary-container: #003933;
-  --color-on-tertiary: #001f1b;
-  --color-on-tertiary-container: #a7ffeb;
-
-  --color-error: #ffb4ab;
-  --color-error-container: #690005;
-  --color-on-error: #3d0001;
-  --color-on-error-container: #ffdad6;
-
-  --color-surface: #1c1b1f;
-  --color-on-surface: #e6e1e5;
-  --color-surface-variant: #49454f;
-  --color-on-surface-variant: #cac4d0;
-  --color-outline: #938f99;
-  --color-outline-variant: #49454f;
-
-  --color-background: #1c1b1f;
-  --color-on-background: #e6e1e5;
-
-  --color-inverse-surface: #e6e1e5;
-  --color-inverse-on-surface: #313033;
-  --color-inverse-primary: #1a73e8;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-short: 150ms;
+  --duration-medium: 250ms;
+  --duration-long: 400ms;
 }
 
 /* ==========================================================================
@@ -203,14 +93,14 @@ html, body {
   font-family: var(--font-family);
   font-size: 14px;
   line-height: 1.5;
-  color: var(--color-on-background);
+  color: var(--color-text);
   background: var(--color-background);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
-/* Focus visible for accessibility */
+/* Focus ring (Google style) */
 :focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
@@ -218,28 +108,29 @@ html, body {
 
 /* Selection */
 ::selection {
-  background: var(--color-primary-container);
-  color: var(--color-on-primary-container);
+  background: var(--color-focus-ring);
+  color: var(--color-text);
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-outline-variant);
+  background: var(--color-surface-variant);
   border-radius: var(--radius-full);
+  border: 2px solid var(--color-background);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-outline);
+  background: var(--color-border);
 }
 
 /* ==========================================================================
-   Utility classes
+   Utilities
    ========================================================================== */
 .sr-only {
   position: absolute;
@@ -252,13 +143,3 @@ html, body {
   white-space: nowrap;
   border: 0;
 }
-
-/* Elevation utilities */
-.elevation-1 { box-shadow: var(--shadow-elevation-1); }
-.elevation-2 { box-shadow: var(--shadow-elevation-2); }
-.elevation-3 { box-shadow: var(--shadow-elevation-3); }
-.elevation-4 { box-shadow: var(--shadow-elevation-4); }
-
-/* Interactive elevation */
-.elevation-1:hover { box-shadow: var(--shadow-elevation-2); }
-.elevation-2:hover { box-shadow: var(--shadow-elevation-3); }

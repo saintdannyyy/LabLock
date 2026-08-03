@@ -1,6 +1,10 @@
+const TILE_COLORS = ['#4285f4', '#ea4335', '#fbbc05', '#34a853', '#f4511e', '#0097a7'];
+let colorIndex = 0;
+
 function makeFallbackIcon(name: string): HTMLElement {
   const div = document.createElement('div');
   div.className = 'tile-icon-fallback';
+  div.style.background = TILE_COLORS[colorIndex++ % TILE_COLORS.length];
   div.textContent = (name.trim()[0] || '?').toUpperCase();
   return div;
 }

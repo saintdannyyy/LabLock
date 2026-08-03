@@ -1,120 +1,99 @@
 @import url('shared.css');
 
-/* Toolbar — fixed 44px strip, always visible */
+/* Toolbar — Chrome-style 48px strip */
 html, body {
   overflow: hidden;
-  height: 44px;
+  height: 48px;
   background: var(--color-surface);
-  border-bottom: 1px solid var(--color-outline-variant);
+  border-bottom: 1px solid var(--color-border);
 }
 
 body {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-4);
   padding: 0 var(--space-4);
   height: 100%;
+  user-select: none;
 }
 
-/* Brand / Title */
+/* Brand */
 .toolbar-brand {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--color-on-surface);
-  user-select: none;
 }
 
-.toolbar-brand-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
+.toolbar-brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-on-primary);
-  font-size: 14px;
-  font-weight: 700;
 }
 
-/* Home button — primary action */
-#home-btn {
+.toolbar-brand-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text);
+  letter-spacing: -0.2px;
+}
+
+/* Home button — Chrome-style (transparent, gray hover pill) */
+.toolbar-btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  height: 36px;
-  padding: 0 var(--space-4);
+  height: 32px;
+  padding: 0 var(--space-3);
   border: none;
   border-radius: var(--radius-full);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: transparent;
+  color: var(--color-text);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
-  letter-spacing: 0.1px;
   cursor: pointer;
-  transition: background var(--motion-duration-short2) var(--motion-easing-standard),
-              box-shadow var(--motion-duration-short2) var(--motion-easing-standard),
-              transform var(--motion-duration-short1) var(--motion-easing-standard);
-  box-shadow: var(--shadow-elevation-1);
-  white-space: nowrap;
+  transition: background var(--duration-short) var(--ease-standard);
 }
 
-#home-btn:hover {
-  background: #1565d0;
-  box-shadow: var(--shadow-elevation-2);
+.toolbar-btn:hover {
+  background: var(--color-surface-variant);
 }
 
-#home-btn:active {
-  background: #1257b0;
-  transform: scale(0.98);
-  box-shadow: var(--shadow-elevation-1);
+.toolbar-btn:active {
+  background: var(--color-border);
 }
 
-#home-btn:focus-visible {
+.toolbar-btn:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
-#home-btn:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: var(--shadow-elevation-1);
+.toolbar-btn-icon {
+  flex-shrink: 0;
 }
 
-.home-btn-icon {
-  font-size: 18px;
-  line-height: 1;
-  display: flex;
-}
-
-/* Status indicator (optional - connection, etc.) */
+/* Status — Chrome HTTPS indicator */
 .toolbar-status {
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  font-size: 11px;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--color-on-surface-variant);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.toolbar-status-dot {
-  width: 6px;
-  height: 6px;
+  color: var(--color-text-secondary);
+  padding: 4px 10px;
   border-radius: var(--radius-full);
-  background: var(--color-tertiary);
+  background: var(--color-surface-variant);
 }
 
-.toolbar-status-dot.warning {
-  background: #f57c00;
-}
-
-.toolbar-status-dot.error {
-  background: var(--color-error);
+.toolbar-status-icon {
+  color: var(--color-text-secondary);
 }

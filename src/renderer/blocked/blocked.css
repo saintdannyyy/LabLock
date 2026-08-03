@@ -1,6 +1,6 @@
 @import url('shared.css');
 
-/* Blocked screen — centered card */
+/* Blocked screen — centered, Google error-page style */
 html, body {
   height: 100%;
   display: flex;
@@ -13,76 +13,71 @@ html, body {
 .blocked-card {
   width: 100%;
   max-width: 440px;
-  padding: var(--space-10) var(--space-8);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-elevation-3);
+  padding: var(--space-12) var(--space-10);
   text-align: center;
-  animation: card-enter var(--motion-duration-medium2) var(--motion-easing-emphasized);
+  animation: card-enter var(--duration-medium) var(--ease-standard);
 }
 
 @keyframes card-enter {
   from {
     opacity: 0;
-    transform: scale(0.96) translateY(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translateY(0);
   }
 }
 
 /* Icon */
 .blocked-icon {
-  width: 80px;
-  height: 80px;
+  width: 72px;
+  height: 72px;
   margin: 0 auto var(--space-6);
   border-radius: var(--radius-full);
-  background: var(--color-error-container);
-  color: var(--color-on-error-container);
+  background: var(--color-error-bg);
+  color: var(--color-error);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
-  line-height: 1;
 }
 
 /* Title */
 .blocked-title {
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
   font-size: 22px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 28px;
-  color: var(--color-on-surface);
+  color: var(--color-text);
   letter-spacing: -0.25px;
 }
 
 /* Message */
 .blocked-message {
-  margin-bottom: var(--space-2);
   font-size: 14px;
   line-height: 20px;
-  color: var(--color-on-surface-variant);
+  color: var(--color-text-secondary);
 }
 
-/* Attempted URL */
+/* Attempted site — Chrome error style */
 .blocked-url {
-  margin-top: var(--space-4);
+  margin-top: var(--space-5);
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-hover);
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 16px;
-  color: var(--color-on-surface-variant);
+  color: var(--color-text-secondary);
   word-break: break-all;
   text-align: left;
   direction: ltr;
 }
 
-/* Home button */
-#home-btn {
-  margin-top: var(--space-8);
+/* Home button — Google filled blue button */
+.blocked-btn {
+  margin-top: var(--space-6);
   width: 100%;
   max-width: 280px;
   height: 44px;
@@ -95,24 +90,22 @@ html, body {
   font-weight: 500;
   letter-spacing: 0.1px;
   cursor: pointer;
-  transition: background var(--motion-duration-short2) var(--motion-easing-standard),
-              box-shadow var(--motion-duration-short2) var(--motion-easing-standard),
-              transform var(--motion-duration-short1) var(--motion-easing-standard);
-  box-shadow: var(--shadow-elevation-1);
+  transition: background var(--duration-short) var(--ease-standard),
+              box-shadow var(--duration-short) var(--ease-standard);
+  box-shadow: var(--shadow-1);
 }
 
-#home-btn:hover {
-  background: #1565d0;
-  box-shadow: var(--shadow-elevation-2);
+.blocked-btn:hover {
+  background: var(--color-primary-hover);
+  box-shadow: var(--shadow-2);
 }
 
-#home-btn:active {
-  background: #1257b0;
-  transform: scale(0.98);
-  box-shadow: var(--shadow-elevation-1);
+.blocked-btn:active {
+  background: var(--color-primary-active);
+  box-shadow: var(--shadow-1);
 }
 
-#home-btn:focus-visible {
+.blocked-btn:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
@@ -121,11 +114,5 @@ html, body {
 @media (max-width: 480px) {
   .blocked-card {
     padding: var(--space-8) var(--space-6);
-    border-radius: var(--radius-lg);
-  }
-  .blocked-icon {
-    width: 64px;
-    height: 64px;
-    font-size: 32px;
   }
 }
