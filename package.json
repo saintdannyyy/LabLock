@@ -29,7 +29,8 @@
     ],
     "extraResources": [
       { "from": "config", "to": "config" },
-      { "from": "assets", "to": "assets" }
+      { "from": "assets", "to": "assets" },
+      { "from": "bin/inputhook", "to": "bin/inputhook" }
     ],
     "win": {
       "target": "nsis",

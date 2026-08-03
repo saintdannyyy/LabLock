@@ -1,8 +1,8 @@
 # Installer scripts
 
 OS-level integration scripts. **Phase 2 (startup registration) is
-implemented.** Phase 3 (shell replacement + Task Manager policy) is **not yet
-implemented** — see the note at the bottom.
+implemented.** Phase 3 (shell replacement + Task Manager policy) scripts are
+being added below.
 
 ## Phase 2 — Launch at startup
 
@@ -52,16 +52,33 @@ final posture.
 
 ---
 
-## Phase 3 — (not yet implemented)
+## Phase 3 — Task Manager policy
 
-To be added in Phase 3, each with its own plan/review cycle because they
-change a real machine's boot behavior:
+Two scripts control the `DisableTaskMgr` registry value (machine-wide, HKLM).
+**Both require an elevated (Run as Administrator) PowerShell session.**
 
-- A script that sets
-  `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell` to this
-  app's executable instead of `explorer.exe`, **plus a matching, tested
-  rollback script** that restores `explorer.exe` — required before any shell
-  replacement ships, since a mistake here can leave a machine unable to boot
-  to a normal desktop.
-- A script to set `DisableTaskMgr` under
-  `HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\System`.
+- `disable-taskmgr.ps1` — sets `DisableTaskMgr=1` (blocks Task Manager for all users)
+- `enable-taskmgr.ps1` — removes the value (restores Task Manager)
+
+### Usage
+
+```
+# Must run from an elevated shell (Right-click PowerShell → Run as Administrator)
+.\disable-taskmgr.ps1
+.\enable-taskmgr.ps1
+```
+
+### Why HKLM instead of HKCU
+
+On Windows 11, `HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\System`
+has a restrictive ACL that denies write access even to the key's owner. The
+machine-wide HKLM path is the supported, reliable location — it's what Group
+Policy uses and it applies to every user on the lab machine.
+
+### Effect
+
+When `DisableTaskMgr=1` is set, `taskmgr.exe` refuses to start from **any**
+entry point: Ctrl+Shift+Esc, Ctrl+Alt+Del → Task Manager, Run dialog, Start
+menu, command line. The low-level keyboard hook (Phase 3) cannot reliably
+block Ctrl+Shift+Esc — Windows handles it as a system hotkey outside user-mode
+hook reach — so this policy is the correct, documented mechanism.

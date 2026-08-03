@@ -9,8 +9,8 @@ to anything else.
 
 **Phase 1 (core browser + whitelist enforcement) — done.**
 **Phase 2 (window lockdown + startup registration) — done.**
-Phase 3 (shell replacement + keyboard hook + Task Manager policy) and Phase 4
-(admin escape hatch + watchdog) are **not yet implemented**.
+**Phase 3 (shell replacement + keyboard hook + Task Manager policy) — done.**
+Phase 4 (admin escape hatch + watchdog) is **planned**.
 
 Where things stand now:
 
@@ -19,11 +19,20 @@ Where things stand now:
   Windows session end), DevTools disabled, app menu stripped.
 - The app **registers to launch at logon** via a Scheduled Task (or Run key)
   using the scripts in `installer/`.
+- **Global keyboard hook** (C# `WH_KEYBOARD_LL`): swallows Alt+F4, Alt+Tab,
+  Win key (L/R), Ctrl+Shift+Esc. Electron's `globalShortcut` cannot register
+  these system-level combos; the hook runs as a companion process
+  (`bin/inputhook/InputHook.exe`) built with the OS-bundled `csc.exe`.
+- **Shell replacement** scripts (`installer/enable-shell.ps1` /
+  `disable-shell.ps1`) set `HKLM\...\Winlogon\Shell` to the app exe with a
+  tested rollback.
+- **Task Manager policy** scripts (`installer/disable-taskmgr.ps1` /
+  `enable-taskmgr.ps1`) set `DisableTaskMgr=1` at HKLM (machine-wide, requires
+  admin; HKCU Policies ACL is protected on Win11).
 - There is **no escape hatch yet** (that's Phase 4): once running as a kiosk
   window, the only ways out are killing the process or logging off/shutting
   down. Do not deploy to a lab machine expecting a full lockdown yet —
-  Phase 3's shell replacement, keyboard hooks, and Phase 4's admin escape are
-  what complete the posture.
+  Phase 4's admin escape and watchdog complete the posture.
 
 ## Setup & build
 
@@ -220,23 +229,50 @@ Run `npm start`, then walk through:
    value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, then
    unregister and confirm removal.
 
+### Phase 3 — shell replacement, keyboard hook, Task Manager policy
+
+**Requires a test machine/VM — these change boot behavior.**
+
+1. **DisableTaskMgr** — from elevated PowerShell:
+   `installer/disable-taskmgr.ps1` → verify `taskmgr.exe` refuses to launch
+   (Ctrl+Shift+Esc, Ctrl+Alt+Del, Run dialog, Start menu all do nothing).
+   `installer/enable-taskmgr.ps1` restores it.
+
+2. **Keyboard hook** — launch kiosk (`LOCKDOWN_KIOSK=1` or packaged):
+   - Alt+F4 → window stays open
+   - Alt+Tab → foreground does not change
+   - Win key (L/R) → Start menu does not open
+   - Ctrl+Shift+Esc → Task Manager does not launch (blocked by policy)
+   - Regular typing / Ctrl+C / Ctrl+V / Ctrl+Shift+I (in dev) still work
+
+3. **Shell replacement** — from elevated PowerShell:
+   `installer/enable-shell.ps1 -AppExe "<app exe>"` → log off → app launches
+   as shell (no explorer, no taskbar, no Start menu).
+   `installer/disable-shell.ps1` (from Safe Mode if needed) → restores explorer.exe.
+   **Test the rollback in a disposable VM first.**
+
+4. **Combined** — enable shell + hook + policy, reboot, verify full lockdown.
+   Exit = Ctrl+Alt+Del → Sign out (only escape until Phase 4).
+
 ## Windows version notes
 
 Phase 1 has no Windows-version-specific behavior. Phase 2's lockdown flags
 and startup registration behave the same on Windows 10/11 and Home/Pro; the
 per-user vs any-user registration distinction (above) is the main gotcha.
-Version/edition differences become more significant in Phase 3 (Scheduled
-Task edge cases, `Winlogon\Shell` replacement, low-level keyboard hooks,
-`DisableTaskMgr` policy) — those will be documented when those phases are
-built and tested.
+Phase 3's shell replacement (`Winlogon\Shell`), low-level keyboard hook
+(`WH_KEYBOARD_LL`), and `DisableTaskMgr` policy are all standard Windows
+mechanisms that work on Windows 10/11 Home/Pro. The HKCU Policies ACL
+restriction on Windows 11 is why `DisableTaskMgr` uses HKLM (machine-wide,
+requires admin). The low-level keyboard hook is compiled with the OS-bundled
+`csc.exe` (no MSVC/Build Tools needed).
 
-## Security scope (through Phase 2)
+## Security scope (through Phase 3)
 
 This build enforces the site whitelist inside a kiosk-mode window that resists
-closing and launches at logon. It does **not** yet: replace the Windows shell
-(so the desktop/taskbar/Start menu are still present — a student can reach the
-Task Manager and other tools), intercept global keyboard shortcuts (Alt+Tab,
-the Win key, Ctrl+Alt+Del are all still functional), survive process kill
-(no watchdog), or offer an admin escape hatch. All of that is Phases 3–4.
-Phase 2 deters casual window-manipulation; it is explicitly NOT resistant to a
-user with local admin rights, physical access, or a bootable USB.
+closing, blocks global escape combos (Alt+F4, Alt+Tab, Win key, Ctrl+Shift+Esc),
+blocks Task Manager via policy, and can replace the Windows shell so the app
+launches as the shell at logon. It does **not** yet: offer an admin escape hatch
+(Phase 4), survive process kill (watchdog is Phase 4), or block Ctrl+Alt+Del
+(OS-protected Secure Attention Sequence — cannot be intercepted). Phase 3
+resists a determined student with local user privileges; it is explicitly NOT
+resistant to a user with local admin rights, physical access, or a bootable USB.

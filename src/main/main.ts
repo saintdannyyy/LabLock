@@ -2,6 +2,7 @@ import { app, dialog, BrowserWindow, Menu } from 'electron';
 import { loadWhitelist } from './whitelist';
 import { createMainWindow, getWhitelistForRenderer, navigateToSite, goHome, KIOSK, setAllowClose } from './window';
 import { registerIpcHandlers } from './ipc';
+import { startInputHook, stopInputHook } from './input-hook';
 import type { WhitelistFile } from '../shared/types';
 
 app.whenReady().then(() => {
@@ -27,7 +28,12 @@ app.whenReady().then(() => {
     return;
   }
 
-  createMainWindow(whitelist);
+  const mainWindow = createMainWindow(whitelist);
+
+  if (KIOSK) {
+    startInputHook(mainWindow);
+  }
+
   registerIpcHandlers({
     getWhitelistForRenderer,
     navigateToSite,
@@ -56,7 +62,14 @@ app.on('window-all-closed', () => {
 // Note: electron.d.ts (v43) declares 'query-session-end'/'session-end' outside
 // the App interface's typed 'on' overloads even though they are real App events
 // at runtime on Windows (see the Electron docs for app.on('query-session-end')).
-// Registering via EventEmitter to avoid fighting the shipped type definitions.
 (app as NodeJS.EventEmitter).on('query-session-end', () => {
   setAllowClose(true);
+});
+
+// Clean up the input hook on app quit
+app.on('before-quit', () => {
+  stopInputHook();
+});
+app.on('will-quit', () => {
+  stopInputHook();
 });

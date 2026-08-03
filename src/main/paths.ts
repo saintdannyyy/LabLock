@@ -35,3 +35,12 @@ function iconsDir(): string {
 export function iconFileUrl(iconFileName: string): string {
   return pathToFileURL(path.join(iconsDir(), iconFileName)).toString();
 }
+
+export function inputHookExePath(): string {
+  if (app.isPackaged) {
+    // extraResources copies bin/inputhook -> resources/bin/inputhook
+    return path.join(process.resourcesPath, 'bin', 'inputhook', 'InputHook.exe');
+  }
+  // dev: bin/inputhook is at project root
+  return path.join(app.getAppPath(), 'bin', 'inputhook', 'InputHook.exe');
+}
