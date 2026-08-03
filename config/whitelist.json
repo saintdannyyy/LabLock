@@ -1,0 +1,15 @@
+{
+  "sites": [
+    {
+      "name": "Google Classroom",
+      "url": "https://classroom.google.com",
+      "icon": "classroom.png",
+      "allowedHosts": ["classroom.google.com", "*.google.com"]
+    },
+    {
+      "name": "Khan Academy",
+      "url": "https://khanacademy.org",
+      "allowedHosts": ["khanacademy.org", "*.khanacademy.org"]
+    }
+  ]
+}

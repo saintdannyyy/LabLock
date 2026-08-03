@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <title>Site not allowed</title>
+  <link rel="stylesheet" href="blocked.css" />
+</head>
+<body>
+  <div class="card">
+    <div class="icon" aria-hidden="true">&#128683;</div>
+    <h1>Site not allowed</h1>
+    <p>This computer is restricted to a whitelist of approved sites.</p>
+    <p class="attempted-url"><span id="attempted-host">The requested site</span> is not on the whitelist.</p>
+    <button id="home-btn" type="button">Return home</button>
+  </div>
+  <script src="blocked.js"></script>
+</body>
+</html>

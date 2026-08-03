@@ -1,0 +1,65 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: #f1f5f9;
+  font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+  color: #1f2933;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card {
+  max-width: 480px;
+  padding: 40px;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  text-align: center;
+}
+
+.icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+h1 {
+  font-size: 22px;
+  margin-bottom: 12px;
+  color: #b91c1c;
+}
+
+p {
+  font-size: 14px;
+  color: #475569;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.attempted-url {
+  font-weight: 600;
+  color: #1f2933;
+}
+
+#home-btn {
+  margin-top: 20px;
+  height: 36px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 6px;
+  background: #334155;
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#home-btn:hover {
+  background: #475569;
+}

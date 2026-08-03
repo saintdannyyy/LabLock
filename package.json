@@ -1,0 +1,40 @@
+{
+  "name": "lockdown-kiosk-browser",
+  "version": "0.1.0",
+  "description": "Locked-down kiosk browser for school computer labs",
+  "main": "dist/main/main.js",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-assets.js",
+    "start": "npm run build && electron .",
+    "dev": "tsc -p tsconfig.json -w",
+    "package:win": "npm run build && electron-builder --win",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
+    "typescript": "^7.0.2"
+  },
+  "build": {
+    "appId": "com.lockdown.kioskbrowser",
+    "productName": "Lockdown Kiosk Browser",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      { "from": "config", "to": "config" },
+      { "from": "assets", "to": "assets" }
+    ],
+    "win": {
+      "target": "nsis",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "asar": true
+  }
+}
