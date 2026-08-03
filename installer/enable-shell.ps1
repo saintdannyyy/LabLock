@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Sets this app as the Windows shell (replaces explorer.exe).
+    Sets LabLock as the Windows shell (replaces explorer.exe).
 
 .DESCRIPTION
     Sets HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell to this app's
@@ -9,21 +9,21 @@
 
 .NOTES
     * This replaces the Windows shell — no explorer.exe, no taskbar, no Start menu,
-      no desktop icons. The kiosk app becomes the shell and launches at logon.
+      no desktop icons. LabLock becomes the shell and launches at logon.
     * A tested rollback script (disable-shell.ps1) restores the original shell.
     * Test the rollback in a disposable session/VM before deploying to a lab machine.
     * If the machine becomes unbootable to a normal desktop, boot to Safe Mode
       (Shift+Restart → Troubleshoot → Advanced Options → Startup Settings → 4)
       and run disable-shell.ps1 from an elevated command prompt.
-    * The rollback file is stored at $env:ProgramData\Lockdown Kiosk Browser\winlogon-shell.backup.txt
+    * The rollback file is stored at $env:ProgramData\LabLock\winlogon-shell.backup.txt
 
 .PARAMETER AppExe
-    Full path to the Lockdown Kiosk Browser executable. If omitted, the script
+    Full path to the LabLock executable. If omitted, the script
     searches common install locations (NSIS per-user, Program Files, release/win-unpacked).
 
 .EXAMPLE
     # From elevated PowerShell
-    .\enable-shell.ps1 -AppExe "C:\Program Files\Lockdown Kiosk Browser\Lockdown Kiosk Browser.exe"
+    .\enable-shell.ps1 -AppExe "C:\Program Files\LabLock\LabLock.exe"
 
 .EXAMPLE
     # Auto-detect from common locations
@@ -51,11 +51,11 @@ if (-not (Test-Admin)) {
 function Find-AppExe {
     $candidates = @(
         # NSIS per-user install
-        Join-Path $env:LOCALAPPDATA 'Lockdown Kiosk Browser\Lockdown Kiosk Browser.exe'
+        Join-Path $env:LOCALAPPDATA 'LabLock\LabLock.exe'
         # System-wide NSIS install
-        Join-Path $env:ProgramFiles 'Lockdown Kiosk Browser\Lockdown Kiosk Browser.exe'
+        Join-Path $env:ProgramFiles 'LabLock\LabLock.exe'
         # Unpacked build output
-        Join-Path $PSScriptRoot '..\release\win-unpacked\Lockdown Kiosk Browser.exe'
+        Join-Path $PSScriptRoot '..\release\win-unpacked\LabLock.exe'
     )
     foreach ($c in $candidates) {
         if (Test-Path -LiteralPath $c) { return $c }
@@ -66,7 +66,7 @@ function Find-AppExe {
 if (-not $AppExe) {
     $AppExe = Find-AppExe
     if (-not $AppExe) {
-        Write-Error "Could not locate Lockdown Kiosk Browser.exe. Pass -AppExe explicitly."
+        Write-Error "Could not locate LabLock.exe. Pass -AppExe explicitly."
         exit 1
     }
     Write-Host "Auto-detected app: $AppExe"
@@ -85,7 +85,7 @@ if (-not (Test-Admin)) {
 
 $winlogonPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon'
 $valueName = 'Shell'
-$backupDir = Join-Path $env:ProgramData 'Lockdown Kiosk Browser'
+$backupDir = Join-Path $env:ProgramData 'LabLock'
 $backupFile = Join-Path $backupDir 'winlogon-shell.backup.txt'
 
 # 1. Backup current Shell value (or default to explorer.exe)

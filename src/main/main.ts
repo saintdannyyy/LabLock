@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { app, dialog, BrowserWindow, Menu, ipcMain } from 'electron';
 import { loadWhitelist } from './whitelist';
 import { createMainWindow, getWhitelistForRenderer, navigateToSite, goHome, KIOSK, setAllowClose } from './window';
@@ -31,9 +32,29 @@ function startEscapePipeServer(mainWindow: BrowserWindow): void {
     console.error('Escape pipe server error:', err);
   });
 
-  escapePipeServer.listen(`\\\\.\\pipe\\${ESCAPE_PIPE_NAME}`, () => {
-    console.log(`Escape hatch pipe server listening on \\\\.\\pipe\\${ESCAPE_PIPE_NAME}`);
+  // Retry once if pipe is in use (leftover from previous unclean shutdown)
+  let attempts = 0;
+  const tryListen = () => {
+    escapePipeServer!.listen(`\\\\.\\pipe\\${ESCAPE_PIPE_NAME}`, () => {
+      console.log(`Escape hatch pipe server listening on \\\\.\\pipe\\${ESCAPE_PIPE_NAME}`);
+    });
+  };
+  escapePipeServer.once('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE' && attempts === 0) {
+      attempts++;
+      // Try to connect and close the stale pipe, then retry
+      const net = require('net');
+      const client = net.createConnection(`\\\\.\\pipe\\${ESCAPE_PIPE_NAME}`, () => {
+        client.destroy();
+        setTimeout(tryListen, 100);
+      });
+      client.on('error', () => {
+        // Pipe doesn't accept connections, force retry
+        setTimeout(tryListen, 100);
+      });
+    }
   });
+  tryListen();
 }
 
 function showAdminEscapeDialog(mainWindow: BrowserWindow): void {

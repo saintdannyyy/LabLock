@@ -1,30 +1,27 @@
 # Installer scripts
 
-OS-level integration scripts. **Phase 2 (startup registration) is
-implemented.** Phase 3 (shell replacement + Task Manager policy) scripts are
-being added below.
+OS-level integration scripts for **LabLock**.
 
 ## Phase 2 — Launch at startup
 
 Two scripts manage automatic launch at Windows logon:
 
 - `register-startup.ps1` — creates the startup registration
-- `unregister-startup.ps1` — removes it (also removes any leftover Run-key
-  entry, so it's safe to run unconditionally)
+- `unregister-startup.ps1` — removes it (also removes any leftover Run-key entry, so it's safe to run unconditionally)
 
 ### Usage
 
 ```
 # Default: Scheduled Task that runs the app at the current user's logon.
 # No admin rights required.
-.\register-startup.ps1 -AppExe "C:\path\to\Lockdown Kiosk Browser.exe"
+.\register-startup.ps1 -AppExe "C:\path\to\LabLock.exe"
 
 # Alternative: HKCU Run registry key (per-user, no admin).
-.\register-startup.ps1 -UseRunKey -AppExe "C:\path\to\Lockdown Kiosk Browser.exe"
+.\register-startup.ps1 -UseRunKey -AppExe "C:\path\to\LabLock.exe"
 
 # Optional: run at ANY user's logon. Requires an elevated (Run as
 # Administrator) shell.
-.\register-startup.ps1 -AllUsers -AppExe "C:\path\to\Lockdown Kiosk Browser.exe"
+.\register-startup.ps1 -AllUsers -AppExe "C:\path\to\LabLock.exe"
 ```
 
 `-AppExe` can be omitted; the script then searches common install locations
@@ -52,7 +49,30 @@ final posture.
 
 ---
 
-## Phase 3 — Task Manager policy
+## Phase 3 — Shell replacement + Task Manager policy
+
+### Shell replacement
+
+Two scripts replace the Windows shell (`explorer.exe`) with LabLock:
+
+- `enable-shell.ps1` — sets `HKLM\...\Winlogon\Shell` to LabLock.exe, backs up original value
+- `disable-shell.ps1` — restores the original shell from backup
+
+**Both require an elevated (Run as Administrator) PowerShell session.**
+
+```
+# Must run from elevated shell (Right-click PowerShell → Run as Administrator)
+.\enable-shell.ps1 -AppExe "C:\Program Files\LabLock\LabLock.exe"
+# Log off / reboot → LabLock launches as shell (no explorer, no taskbar)
+
+# To rollback (from Safe Mode if needed):
+.\disable-shell.ps1
+```
+
+**Critical:** Test the rollback (`disable-shell.ps1`) in a disposable VM first.
+A failed shell replacement can leave a machine unable to boot to a normal desktop.
+
+### Task Manager policy
 
 Two scripts control the `DisableTaskMgr` registry value (machine-wide, HKLM).
 **Both require an elevated (Run as Administrator) PowerShell session.**
@@ -60,22 +80,20 @@ Two scripts control the `DisableTaskMgr` registry value (machine-wide, HKLM).
 - `disable-taskmgr.ps1` — sets `DisableTaskMgr=1` (blocks Task Manager for all users)
 - `enable-taskmgr.ps1` — removes the value (restores Task Manager)
 
-### Usage
-
 ```
 # Must run from an elevated shell (Right-click PowerShell → Run as Administrator)
 .\disable-taskmgr.ps1
 .\enable-taskmgr.ps1
 ```
 
-### Why HKLM instead of HKCU
+#### Why HKLM instead of HKCU
 
 On Windows 11, `HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\System`
 has a restrictive ACL that denies write access even to the key's owner. The
 machine-wide HKLM path is the supported, reliable location — it's what Group
 Policy uses and it applies to every user on the lab machine.
 
-### Effect
+#### Effect
 
 When `DisableTaskMgr=1` is set, `taskmgr.exe` refuses to start from **any**
 entry point: Ctrl+Shift+Esc, Ctrl+Alt+Del → Task Manager, Run dialog, Start

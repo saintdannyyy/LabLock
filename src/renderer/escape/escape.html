@@ -1,50 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Admin Escape</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1e1e1e; color: #e0e0e0; display: flex; align-items: center; justify-content: center; height: 100vh; }
-    .dialog { background: #2d2d2d; border: 1px solid #444; border-radius: 8px; padding: 32px; width: 100%; max-width: 360px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
-    h2 { margin-bottom: 8px; font-size: 1.25rem; font-weight: 600; color: #fff; }
-    p { margin-bottom: 24px; font-size: 0.875rem; color: #aaa; }
-    .input-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
-    label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: #888; }
-    input[type="password"] { padding: 12px 16px; border: 1px solid #444; border-radius: 4px; background: #1e1e1e; color: #fff; font-size: 1rem; outline: none; transition: border-color 0.2s; }
-    input[type="password"]:focus { border-color: #0078d4; }
-    .buttons { display: flex; justify-content: flex-end; gap: 12px; }
-    button { padding: 10px 20px; border: none; border-radius: 4px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
-    .btn-cancel { background: #3d3d3d; color: #e0e0e0; }
-    .btn-cancel:hover { background: #4a4a4a; }
-    .btn-exit { background: #d13438; color: #fff; }
-    .btn-exit:hover { background: #b32d31; }
-    .error { color: #f14c4c; font-size: 0.75rem; margin-top: 8px; display: none; }
-    .error.visible { display: block; }
-  </style>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <title>Admin Escape — LabLock</title>
+  <link rel="stylesheet" href="escape.css" />
 </head>
 <body>
-  <div class="dialog" role="dialog" aria-labelledby="title" aria-modal="true">
-    <h2 id="title">Admin Escape Hatch</h2>
-    <p>Enter the admin password to exit kiosk mode.</p>
-    <div class="input-group">
-      <label for="password">Password</label>
-      <input type="password" id="password" autocomplete="off" placeholder="Enter password" aria-label="Admin password">
-    </div>
-    <div class="error" id="error" aria-live="polite">Incorrect password</div>
-    <div class="buttons">
-      <button class="btn-cancel" id="cancelBtn">Cancel</button>
-      <button class="btn-exit" id="exitBtn">Exit Kiosk</button>
-    </div>
+  <div class="escape-dialog" role="dialog" aria-labelledby="escape-title" aria-modal="true" aria-describedby="escape-subtitle">
+    <header>
+      <h2 id="escape-title" class="escape-title">Admin Escape Hatch</h2>
+      <p id="escape-subtitle" class="escape-subtitle">Enter the admin password to exit kiosk mode.</p>
+    </header>
+    <form class="escape-form" id="escape-form" novalidate>
+      <div class="escape-field">
+        <label for="password" class="escape-label">Password</label>
+        <div class="escape-input-wrapper">
+          <input type="password"
+                 id="password"
+                 class="escape-input"
+                 autocomplete="off"
+                 placeholder="Enter password"
+                 aria-label="Admin password"
+                 aria-describedby="escape-error"
+                 spellcheck="false">
+          <button type="button"
+                  class="escape-toggle"
+                  id="toggle-visibility"
+                  aria-label="Show password"
+                  aria-pressed="false">
+            <svg class="icon-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg class="icon-eye-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none;">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+          </button>
+        </div>
+        <p class="escape-error" id="escape-error" aria-live="polite">Incorrect password</p>
+      </div>
+    </form>
+    <footer class="escape-actions">
+      <button type="button" class="escape-btn escape-btn-cancel" id="cancelBtn">Cancel</button>
+      <button type="submit" form="escape-form" class="escape-btn escape-btn-exit" id="exitBtn">Exit Kiosk</button>
+    </footer>
   </div>
   <script>
     const passwordInput = document.getElementById('password');
+    const toggleBtn = document.getElementById('toggle-visibility');
+    const iconEye = toggleBtn.querySelector('.icon-eye');
+    const iconEyeOff = toggleBtn.querySelector('.icon-eye-off');
     const cancelBtn = document.getElementById('cancelBtn');
     const exitBtn = document.getElementById('exitBtn');
-    const errorEl = document.getElementById('error');
+    const errorEl = document.getElementById('escape-error');
+    const form = document.getElementById('escape-form');
     const { ipcRenderer } = require('electron');
 
     let submitted = false;
+    let passwordVisible = false;
 
     function submit() {
       if (submitted) return;
@@ -53,12 +68,42 @@
       ipcRenderer.send('escape:password-result', pwd);
     }
 
+    function showError() {
+      passwordInput.classList.add('error');
+      errorEl.classList.add('visible');
+      passwordInput.focus();
+    }
+
+    function clearError() {
+      passwordInput.classList.remove('error');
+      errorEl.classList.remove('visible');
+    }
+
     exitBtn.addEventListener('click', submit);
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      submit();
+    });
+
     passwordInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') submit();
+      clearError();
     });
+
+    passwordInput.addEventListener('input', clearError);
+
     cancelBtn.addEventListener('click', () => {
       ipcRenderer.send('escape:password-result', '__CANCEL__');
+    });
+
+    // Toggle password visibility
+    toggleBtn.addEventListener('click', () => {
+      passwordVisible = !passwordVisible;
+      passwordInput.type = passwordVisible ? 'text' : 'password';
+      toggleBtn.setAttribute('aria-pressed', passwordVisible);
+      toggleBtn.setAttribute('aria-label', passwordVisible ? 'Hide password' : 'Show password');
+      iconEye.style.display = passwordVisible ? 'none' : 'block';
+      iconEyeOff.style.display = passwordVisible ? 'block' : 'none';
     });
 
     // Focus password field on load

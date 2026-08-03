@@ -1,7 +1,7 @@
 {
-  "name": "lockdown-kiosk-browser",
+  "name": "lab-lock",
   "version": "0.1.0",
-  "description": "Locked-down kiosk browser for school computer labs",
+  "description": "LabLock — Locked-down kiosk browser for school computer labs",
   "main": "dist/main/main.js",
   "private": true,
   "scripts": {
@@ -18,8 +18,8 @@
     "typescript": "^7.0.2"
   },
   "build": {
-    "appId": "com.lockdown.kioskbrowser",
-    "productName": "Lockdown Kiosk Browser",
+    "appId": "com.lablock.kiosk",
+    "productName": "LabLock",
     "directories": {
       "output": "release"
     },
@@ -38,5 +38,8 @@
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "asar": true
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
   }
 }

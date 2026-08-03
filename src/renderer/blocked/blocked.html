@@ -3,17 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
-  <title>Site not allowed</title>
+  <title>Site not allowed — LabLock</title>
   <link rel="stylesheet" href="blocked.css" />
 </head>
 <body>
-  <div class="card">
-    <div class="icon" aria-hidden="true">&#128683;</div>
-    <h1>Site not allowed</h1>
-    <p>This computer is restricted to a whitelist of approved sites.</p>
-    <p class="attempted-url"><span id="attempted-host">The requested site</span> is not on the whitelist.</p>
+  <article class="blocked-card" role="alert">
+    <div class="blocked-icon" aria-hidden="true">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="15" y1="9" x2="9" y2="15"></line>
+        <line x1="9" y1="9" x2="15" y2="15"></line>
+      </svg>
+    </div>
+    <h1 class="blocked-title">Site not allowed</h1>
+    <p class="blocked-message">This computer is restricted to a whitelist of approved sites.</p>
+    <div class="blocked-url" id="attempted-url" aria-label="Attempted URL"></div>
     <button id="home-btn" type="button">Return home</button>
-  </div>
+  </article>
   <script src="blocked.js"></script>
 </body>
 </html>

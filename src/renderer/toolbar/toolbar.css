@@ -1,47 +1,120 @@
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+@import url('shared.css');
 
+/* Toolbar — fixed 44px strip, always visible */
 html, body {
-  width: 100%;
-  height: 100%;
   overflow: hidden;
-  background: #1f2933;
-  font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+  height: 44px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-outline-variant);
 }
 
 body {
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  justify-content: space-between;
+  padding: 0 var(--space-4);
+  height: 100%;
 }
 
-#home-btn {
+/* Brand / Title */
+.toolbar-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 16px;
-  border: none;
-  border-radius: 6px;
-  background: #334155;
-  color: #f8fafc;
+  gap: var(--space-2);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--color-on-surface);
+  user-select: none;
+}
+
+.toolbar-brand-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-on-primary);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+}
+
+/* Home button — primary action */
+#home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-4);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
   cursor: pointer;
+  transition: background var(--motion-duration-short2) var(--motion-easing-standard),
+              box-shadow var(--motion-duration-short2) var(--motion-easing-standard),
+              transform var(--motion-duration-short1) var(--motion-easing-standard);
+  box-shadow: var(--shadow-elevation-1);
+  white-space: nowrap;
 }
 
 #home-btn:hover {
-  background: #475569;
+  background: #1565d0;
+  box-shadow: var(--shadow-elevation-2);
 }
 
 #home-btn:active {
-  background: #2c3a4d;
+  background: #1257b0;
+  transform: scale(0.98);
+  box-shadow: var(--shadow-elevation-1);
 }
 
-.home-icon {
-  font-size: 16px;
+#home-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+#home-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: var(--shadow-elevation-1);
+}
+
+.home-btn-icon {
+  font-size: 18px;
   line-height: 1;
+  display: flex;
+}
+
+/* Status indicator (optional - connection, etc.) */
+.toolbar-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.toolbar-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-tertiary);
+}
+
+.toolbar-status-dot.warning {
+  background: #f57c00;
+}
+
+.toolbar-status-dot.error {
+  background: var(--color-error);
 }

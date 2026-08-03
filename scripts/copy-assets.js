@@ -14,6 +14,15 @@ function copyIfExists(from, to) {
 // Copy renderer .html/.css files next to the compiled renderer .js files.
 const rendererSrc = path.join(projectRoot, 'src', 'renderer');
 const rendererDist = path.join(projectRoot, 'dist', 'renderer');
+
+// Copy shared.css (used by all renderer pages via @import)
+const sharedSrc = path.join(rendererSrc, 'shared.css');
+const sharedDist = path.join(rendererDist, 'shared.css');
+if (fs.existsSync(sharedSrc)) {
+  fs.mkdirSync(rendererDist, { recursive: true });
+  fs.copyFileSync(sharedSrc, sharedDist);
+}
+
 for (const dir of fs.readdirSync(rendererSrc, { withFileTypes: true })) {
   if (!dir.isDirectory()) continue;
   const srcDir = path.join(rendererSrc, dir.name);

@@ -3,12 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' file:;" />
-  <title>Home</title>
+  <title>LabLock</title>
   <link rel="stylesheet" href="home.css" />
 </head>
 <body>
-  <h1>Choose a site</h1>
-  <div id="grid"></div>
+  <div class="home-container">
+    <header class="home-header">
+      <h1 class="home-title">LabLock</h1>
+      <p class="home-subtitle">Choose a site to begin</p>
+    </header>
+    <main id="grid" role="list" aria-label="Allowed sites"></main>
+  </div>
   <script src="home.js"></script>
 </body>
 </html>

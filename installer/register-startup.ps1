@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Registers the kiosk app to launch automatically at Windows logon.
+Registers LabLock to launch automatically at Windows logon.
 
 .DESCRIPTION
 Default method (no switches): a Scheduled Task that runs the app when the
@@ -21,8 +21,7 @@ install location, then Program Files, then release/win-unpacked relative to
 this repo. Pass -AppExe explicitly for any other location.
 
 .PARAMETER AppExe
-Full path to the app executable (Lockdown Kiosk Browser.exe). Auto-detected
-if omitted.
+Full path to the app executable (LabLock.exe). Auto-detected if omitted.
 
 .PARAMETER AllUsers
 Register the Scheduled Task to run at logon of any user (requires admin).
@@ -31,7 +30,7 @@ Register the Scheduled Task to run at logon of any user (requires admin).
 Use the HKCU Run registry key instead of a Scheduled Task.
 
 .EXAMPLE
-.\register-startup.ps1 -AppExe "C:\Program Files\Lockdown Kiosk Browser.exe"
+.\register-startup.ps1 -AppExe "C:\Program Files\LabLock\LabLock.exe"
 
 .EXAMPLE
 .\register-startup.ps1 -UseRunKey
@@ -45,8 +44,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$productName = "Lockdown Kiosk Browser"
-$taskName = "Lockdown Kiosk Browser"
+$productName = "LabLock"
+$taskName = "LabLock"
 $runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
 
 function Test-Elevated {
@@ -59,14 +58,13 @@ function Test-Elevated {
 # --- Resolve the app executable ------------------------------------------
 if (-not $AppExe) {
   $candidates = @(
-    (Join-Path $env:LOCALAPPDATA "Programs\lockdown-kiosk-browser\Lockdown Kiosk Browser.exe"),
-    (Join-Path $env:LOCALAPPDATA "Programs\Lockdown Kiosk Browser\Lockdown Kiosk Browser.exe"),
-    (Join-Path ${env:ProgramFiles} "lockdown-kiosk-browser\Lockdown Kiosk Browser.exe"),
-    (Join-Path $PSScriptRoot "..\release\win-unpacked\Lockdown Kiosk Browser.exe")
+    (Join-Path $env:LOCALAPPDATA "Programs\LabLock\LabLock.exe"),
+    (Join-Path ${env:ProgramFiles} "LabLock\LabLock.exe"),
+    (Join-Path $PSScriptRoot "..\release\win-unpacked\LabLock.exe")
   )
   $AppExe = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
   if (-not $AppExe) {
-    throw "Could not locate 'Lockdown Kiosk Browser.exe'. Pass -AppExe with the full path."
+    throw "Could not locate 'LabLock.exe'. Pass -AppExe with the full path."
   }
 }
 if (-not (Test-Path -LiteralPath $AppExe)) {
@@ -100,6 +98,6 @@ $user = "$env:USERDOMAIN\$env:USERNAME"
 $action = New-ScheduledTaskAction -Execute $AppExe
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger `
-  -Description "Launches the Lockdown Kiosk Browser at logon of $user" -Force | Out-Null
+  -Description "Launches LabLock at logon of $user" -Force | Out-Null
 Write-Host "[Scheduled Task] Created '$taskName' to run at logon of $user (current user)."
 Write-Host "[Scheduled Task] RunLevel: Limited -- the app itself does not need admin rights at runtime."

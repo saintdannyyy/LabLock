@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-Removes the kiosk app's startup registration created by register-startup.ps1.
+Removes LabLock's startup registration created by register-startup.ps1.
 
 .DESCRIPTION
 Removes whichever registration exists:
-  - the Scheduled Task named "Lockdown Kiosk Browser" (removing a per-user
+  - the Scheduled Task named "LabLock" (removing a per-user
     task does not require admin; the -AllUsers variant does, so pass -AllUsers
     if the original registration was created that way), and/or
-  - the HKCU Run registry entry named "Lockdown Kiosk Browser".
+  - the HKCU Run registry entry named "LabLock".
 
 Safe to run with no arguments -- it deletes whatever is found and reports what
 it removed.
@@ -25,9 +25,9 @@ param(
 
 $ErrorActionPreference = "Continue"
 
-$taskName = "Lockdown Kiosk Browser"
+$taskName = "LabLock"
 $runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-$runValueName = "Lockdown Kiosk Browser"
+$runValueName = "LabLock"
 
 function Test-Elevated {
   $principal = New-Object Security.Principal.WindowsPrincipal(
