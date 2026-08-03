@@ -20,7 +20,6 @@ function spawnHook(): void {
   hookProcess.on('exit', (code) => {
     hookProcess = null;
     if (!stopped && !quitting) {
-      // Restart after a brief delay to avoid tight loop on persistent failure
       setTimeout(spawnHook, 500);
     }
   });
@@ -32,10 +31,11 @@ function spawnHook(): void {
   });
 }
 
-export function startInputHook(mainWindow: BrowserWindow): void {
-  if (!mainWindow) return;
+export function startInputHook(mainWindow: BrowserWindow): number | null {
+  if (!mainWindow) return null;
   stopped = false;
   spawnHook();
+  return hookProcess?.pid ?? null;
 }
 
 export function stopInputHook(): void {

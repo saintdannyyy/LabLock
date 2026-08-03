@@ -44,3 +44,10 @@ export function inputHookExePath(): string {
   // dev: bin/inputhook is at project root
   return path.join(app.getAppPath(), 'bin', 'inputhook', 'InputHook.exe');
 }
+
+export function watchdogExePath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'bin', 'watchdog', 'Watchdog.exe');
+  }
+  return path.join(app.getAppPath(), 'bin', 'watchdog', 'Watchdog.exe');
+}

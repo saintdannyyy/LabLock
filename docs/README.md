@@ -10,7 +10,7 @@ to anything else.
 **Phase 1 (core browser + whitelist enforcement) — done.**
 **Phase 2 (window lockdown + startup registration) — done.**
 **Phase 3 (shell replacement + keyboard hook + Task Manager policy) — done.**
-Phase 4 (admin escape hatch + watchdog) is **planned**.
+**Phase 4 (admin escape hatch + watchdog) — done.**
 
 Where things stand now:
 
@@ -29,10 +29,14 @@ Where things stand now:
 - **Task Manager policy** scripts (`installer/disable-taskmgr.ps1` /
   `enable-taskmgr.ps1`) set `DisableTaskMgr=1` at HKLM (machine-wide, requires
   admin; HKCU Policies ACL is protected on Win11).
-- There is **no escape hatch yet** (that's Phase 4): once running as a kiosk
-  window, the only ways out are killing the process or logging off/shutting
-  down. Do not deploy to a lab machine expecting a full lockdown yet —
-  Phase 4's admin escape and watchdog complete the posture.
+- **Admin escape hatch**: `Ctrl+Alt+Shift+F12` triggers a password prompt.
+  Correct password → `setAllowClose(true)` + graceful exit. Default password
+  `admin123` (override via `LOCKDOWN_ADMIN_PASSWORD` env var).
+- **Watchdog** (C# `bin/watchdog/Watchdog.exe`): monitors Electron + InputHook
+  PIDs; restarts Electron on unexpected exit; respects clean shutdown (exit 0).
+- This is a **complete lockdown posture** for lab deployment. Remaining
+  escape vectors: Ctrl+Alt+Del (OS-protected), local admin rights, physical
+  access, bootable USB.
 
 ## Setup & build
 
@@ -252,7 +256,27 @@ Run `npm start`, then walk through:
    **Test the rollback in a disposable VM first.**
 
 4. **Combined** — enable shell + hook + policy, reboot, verify full lockdown.
-   Exit = Ctrl+Alt+Del → Sign out (only escape until Phase 4).
+    Exit = Ctrl+Alt+Del → Sign out (only escape until Phase 4).
+
+### Phase 4 — admin escape hatch + watchdog
+
+1. **Escape hatch** — launch kiosk (`LOCKDOWN_KIOSK=1` or packaged):
+   - Press `Ctrl+Alt+Shift+F12` → password dialog appears.
+   - Enter correct password (`LOCKDOWN_ADMIN_PASSWORD` or default `admin123`)
+     → app exits gracefully.
+   - Wrong password → error dialog, kiosk stays locked.
+   - Cancel button → dialog closes, kiosk stays locked.
+
+2. **Watchdog** — launch kiosk, verify three processes run:
+   - Electron (main app)
+   - InputHook.exe (keyboard hook)
+   - Watchdog.exe (monitor)
+   - Kill InputHook.exe → Watchdog restarts Electron (new PIDs for all three).
+   - Kill Electron → Watchdog restarts it.
+   - Admin escape hatch → clean exit (code 0), Watchdog does NOT restart.
+
+3. **Env override** — `LOCKDOWN_ADMIN_PASSWORD=mysecret npm start` (with
+   `LOCKDOWN_KIOSK=1`) → escape hatch accepts `mysecret`.
 
 ## Windows version notes
 
@@ -263,16 +287,18 @@ Phase 3's shell replacement (`Winlogon\Shell`), low-level keyboard hook
 (`WH_KEYBOARD_LL`), and `DisableTaskMgr` policy are all standard Windows
 mechanisms that work on Windows 10/11 Home/Pro. The HKCU Policies ACL
 restriction on Windows 11 is why `DisableTaskMgr` uses HKLM (machine-wide,
-requires admin). The low-level keyboard hook is compiled with the OS-bundled
-`csc.exe` (no MSVC/Build Tools needed).
+requires admin). The low-level keyboard hook and watchdog are compiled with
+the OS-bundled `csc.exe` (no MSVC/Build Tools needed). Named pipes for the
+escape hatch work on all supported Windows versions.
 
-## Security scope (through Phase 3)
+## Security scope (through Phase 4)
 
 This build enforces the site whitelist inside a kiosk-mode window that resists
 closing, blocks global escape combos (Alt+F4, Alt+Tab, Win key, Ctrl+Shift+Esc),
-blocks Task Manager via policy, and can replace the Windows shell so the app
-launches as the shell at logon. It does **not** yet: offer an admin escape hatch
-(Phase 4), survive process kill (watchdog is Phase 4), or block Ctrl+Alt+Del
-(OS-protected Secure Attention Sequence — cannot be intercepted). Phase 3
-resists a determined student with local user privileges; it is explicitly NOT
-resistant to a user with local admin rights, physical access, or a bootable USB.
+blocks Task Manager via policy, can replace the Windows shell so the app
+launches as the shell at logon, provides an admin escape hatch
+(`Ctrl+Alt+Shift+F12` + password), and survives process kill via a watchdog
+that restarts the app on unexpected exit. The only remaining escape vectors
+are Ctrl+Alt+Del (OS-protected Secure Attention Sequence — cannot be
+intercepted by any user-mode mechanism), local admin rights, physical access,
+or a bootable USB. This is a complete lockdown posture for lab deployment.

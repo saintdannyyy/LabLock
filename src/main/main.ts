@@ -1,9 +1,97 @@
-import { app, dialog, BrowserWindow, Menu } from 'electron';
+import { app, dialog, BrowserWindow, Menu, ipcMain } from 'electron';
 import { loadWhitelist } from './whitelist';
 import { createMainWindow, getWhitelistForRenderer, navigateToSite, goHome, KIOSK, setAllowClose } from './window';
 import { registerIpcHandlers } from './ipc';
 import { startInputHook, stopInputHook } from './input-hook';
+import { preloadFile, rendererFile, watchdogExePath } from './paths';
+import { createServer } from 'net';
+import { spawn } from 'child_process';
 import type { WhitelistFile } from '../shared/types';
+
+const ESCAPE_PIPE_NAME = 'lockdown-escape';
+const ADMIN_PASSWORD = process.env.LOCKDOWN_ADMIN_PASSWORD || 'admin123'; // default for dev; override in production
+
+let escapePipeServer: ReturnType<typeof createServer> | null = null;
+let escapePromptWindow: BrowserWindow | null = null;
+
+function startEscapePipeServer(mainWindow: BrowserWindow): void {
+  escapePipeServer = createServer((socket) => {
+    let data = '';
+    socket.on('data', (chunk) => {
+      data += chunk.toString();
+    });
+    socket.on('end', () => {
+      if (data.trim() === 'ESCAPE') {
+        showAdminEscapeDialog(mainWindow);
+      }
+    });
+  });
+
+  escapePipeServer.on('error', (err) => {
+    console.error('Escape pipe server error:', err);
+  });
+
+  escapePipeServer.listen(`\\\\.\\pipe\\${ESCAPE_PIPE_NAME}`, () => {
+    console.log(`Escape hatch pipe server listening on \\\\.\\pipe\\${ESCAPE_PIPE_NAME}`);
+  });
+}
+
+function showAdminEscapeDialog(mainWindow: BrowserWindow): void {
+  if (escapePromptWindow) return; // Prevent multiple dialogs
+
+  escapePromptWindow = new BrowserWindow({
+    width: 400,
+    height: 220,
+    parent: mainWindow,
+    modal: true,
+    show: false,
+    frame: false,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    closable: false,
+    alwaysOnTop: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      preload: preloadFile('escape-preload.js'),
+    },
+  });
+
+  escapePromptWindow.loadFile(rendererFile('escape', 'escape.html'));
+
+  escapePromptWindow.once('ready-to-show', () => escapePromptWindow?.show());
+
+  escapePromptWindow.on('closed', () => {
+    escapePromptWindow = null;
+  });
+
+  // Listen for password result
+  const channel = 'escape:password-result';
+  const handler = (_evt: Electron.IpcMainEvent, enteredPassword: string) => {
+    ipcMain.removeListener(channel, handler);
+    if (escapePromptWindow) {
+      escapePromptWindow.close();
+      escapePromptWindow = null;
+    }
+    if (enteredPassword === '__CANCEL__') return;
+    if (enteredPassword === ADMIN_PASSWORD) {
+      setAllowClose(true);
+      mainWindow.close();
+    } else {
+      dialog.showErrorBox('Incorrect Password', 'The password you entered is incorrect.');
+    }
+  };
+  ipcMain.once(channel, handler);
+}
+
+function stopEscapePipeServer(): void {
+  if (escapePipeServer) {
+    escapePipeServer.close();
+    escapePipeServer = null;
+  }
+}
 
 app.whenReady().then(() => {
   // Strip the application menu entirely in kiosk/production builds -- no
@@ -31,7 +119,18 @@ app.whenReady().then(() => {
   const mainWindow = createMainWindow(whitelist);
 
   if (KIOSK) {
-    startInputHook(mainWindow);
+    const hookPid = startInputHook(mainWindow);
+    startEscapePipeServer(mainWindow);
+
+    // Spawn watchdog to monitor Electron + InputHook
+    if (hookPid) {
+      const watchdog = spawn(watchdogExePath(), [
+        '--electron-pid', process.pid.toString(),
+        '--hook-pid', hookPid.toString(),
+        '--app-exe', process.execPath,
+      ], { stdio: 'ignore', windowsHide: true });
+      watchdog.unref(); // Don't keep the process alive for the watchdog
+    }
   }
 
   registerIpcHandlers({
@@ -69,7 +168,9 @@ app.on('window-all-closed', () => {
 // Clean up the input hook on app quit
 app.on('before-quit', () => {
   stopInputHook();
+  stopEscapePipeServer();
 });
 app.on('will-quit', () => {
   stopInputHook();
+  stopEscapePipeServer();
 });

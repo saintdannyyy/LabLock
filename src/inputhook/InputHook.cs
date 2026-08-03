@@ -32,7 +32,9 @@
 
 using System;
 using System.IO;
+using System.IO.Pipes;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace LockdownInputHook
 {
@@ -54,6 +56,7 @@ namespace LockdownInputHook
         private const int VK_LWIN = 0x5B;
         private const int VK_RWIN = 0x5C;
         private const int VK_F4 = 0x73;
+        private const int VK_F12 = 0x7B;
 
         // Modifier state tracked from the events the hook itself sees. This is
         // deterministic: GetAsyncKeyState from inside the hook callback does
@@ -183,6 +186,13 @@ namespace LockdownInputHook
                 {
                     swallow = true;       // Win key, left or right
                 }
+                else if (vk == VK_F12 && (_ctrlDown || (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0) &&
+                         (_altDown || (GetAsyncKeyState(VK_MENU) & 0x8000) != 0) &&
+                         (_shiftDown || (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0))
+                {
+                    swallow = true;       // Ctrl+Alt+Shift+F12 = admin escape hatch
+                    SignalEscapeHatch();
+                }
 
                 if (swallow)
                 {
@@ -191,6 +201,28 @@ namespace LockdownInputHook
                 }
             }
             return CallNextHookEx(_hookId, nCode, wParam, lParam);
+        }
+
+        private static void SignalEscapeHatch()
+        {
+            try
+            {
+                // Connect to the Electron app's named pipe server
+                using (var client = new NamedPipeClientStream(".", "lockdown-escape", PipeDirection.Out))
+                {
+                    client.Connect(1000); // 1 second timeout
+                    if (client.IsConnected)
+                    {
+                        byte[] msg = Encoding.UTF8.GetBytes("ESCAPE");
+                        client.Write(msg, 0, msg.Length);
+                        DebugLog("Sent ESCAPE signal via named pipe");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLog("SignalEscapeHatch failed: " + ex.Message);
+            }
         }
 
         [STAThread]
