@@ -1,19 +1,19 @@
 {
   "sites": [
     {
-      "name": "Google Classroom",
-      "url": "https://classroom.google.com",
+      "name": "Google",
+      "url": "https://google.com",
       "allowedHosts": [
-        "classroom.google.com",
+        "google.com",
         "*.google.com"
       ]
     },
     {
-      "name": "Khan Academy",
-      "url": "https://khanacademy.org",
+      "name": "J100 Coders",
+      "url": "https://j100coders.org",
       "allowedHosts": [
-        "khanacademy.org",
-        "*.khanacademy.org"
+        "j100coders.org",
+        "*.j100coders.org"
       ]
     },
     {
