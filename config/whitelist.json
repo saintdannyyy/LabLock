@@ -3,7 +3,6 @@
     {
       "name": "Google Classroom",
       "url": "https://classroom.google.com",
-      "icon": "classroom.png",
       "allowedHosts": [
         "classroom.google.com",
         "*.google.com"
