@@ -53,6 +53,37 @@ npm run package:win  # builds an unsigned Windows installer (release/) via elect
 `electron .` separately in another terminal to pick up changes (you'll need
 to relaunch Electron manually after each change — there's no hot reload).
 
+## Deploying to a lab PC
+
+The packaged app auto-enables its in-app lockdown (kiosk/frameless window, no
+DevTools, menu stripped, close prevented, escape hatch + watchdog) with no
+extra setup — but the OS-level lockdown is **one-time per PC**, applied after
+installing `release/`'s installer. It only needs repeating on a *new* machine;
+rebuilding/repackaging doesn't undo it.
+
+From an elevated PowerShell on each PC:
+
+```powershell
+# Shell replacement — the app becomes the login shell and starts at every
+# logon automatically (makes startup registration redundant). Prefer this for
+# the final posture; test the rollback in a VM first.
+.\installer\enable-shell.ps1 -AppExe "C:\Program Files\LabLock\LabLock.exe"
+
+# Blocks Task Manager for everyone (needed either way)
+.\installer\disable-taskmgr.ps1
+```
+
+And set the admin escape password (skipped → default `admin123`):
+
+```powershell
+[Environment]::SetEnvironmentVariable('LOCKDOWN_ADMIN_PASSWORD','yourpass','Machine')
+```
+
+If you skip shell replacement, use startup registration instead
+(`installer/register-startup.ps1 -AppExe "..."`, or `-AllUsers` with admin) so
+the app still launches at logon. You always need `disable-taskmgr.ps1`. See
+`installer/README.md` for the full usage and the shell-vs-startup tradeoff.
+
 ## Configuring the whitelist
 
 Edit `config/whitelist.json`:
@@ -77,9 +108,13 @@ Edit `config/whitelist.json`:
 
 - `name` / `url` are required. `url` is what the home-grid tile opens and
   must be `http://` or `https://`.
-- `icon` is optional — a filename (not a path) resolved against
-  `assets/icons/`. If omitted, or the file fails to load, the tile falls
-  back to a plain initial-letter badge.
+- Tile icons are **fetched automatically from the site's favicon** (via
+  Google's favicon service) — no icon files to download or ship. The tile
+  falls back to a plain initial-letter badge if the favicon can't be loaded
+  (offline, unknown domain).
+- `icon` is an optional per-site override — a filename (not a path) resolved
+  against `assets/icons/`. If set, it is tried first, then the favicon, then
+  the letter badge.
 - `allowedHosts` is optional. **If omitted, only the exact hostname from
   `url` is allowed** — no subdomain access. To allow subdomains, add a
   wildcard rule explicitly, e.g. `"*.google.com"`.
