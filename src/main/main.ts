@@ -70,7 +70,11 @@ function showAdminEscapeDialog(mainWindow: BrowserWindow): void {
     resizable: false,
     minimizable: false,
     maximizable: false,
-    closable: false,
+    // closable must stay true: with closable:false, win.close() becomes a no-op
+    // and the dialog would never close when the admin confirms/cancels. Alt+F4
+    // on the dialog is blocked by InputHook in production anyway, and this is a
+    // frame-less window so there is no close button to click.
+    closable: true,
     alwaysOnTop: true,
     webPreferences: {
       nodeIntegration: false,
@@ -79,6 +83,12 @@ function showAdminEscapeDialog(mainWindow: BrowserWindow): void {
       preload: preloadFile('escape-preload.js'),
     },
   });
+
+  // Cover the whole kiosk display so the escape page's dark scrim dims the
+  // entire screen behind the dialog. A 400x340 box with the scrim only inside
+  // it looked like a broken "background behind the modal" floating on the
+  // bright kiosk.
+  escapePromptWindow.setBounds(mainWindow.getBounds());
 
   escapePromptWindow.loadFile(rendererFile('escape', 'escape.html'));
 

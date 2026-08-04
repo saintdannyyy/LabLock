@@ -32,7 +32,6 @@ namespace LockdownWatchdog
         private static int _electronPid;
         private static int _hookPid;
         private static string _appExe;
-        private static bool _cleanShutdown;
 
         private static int Main(string[] args)
         {
@@ -93,20 +92,51 @@ namespace LockdownWatchdog
                 bool electronGone = electronProc.HasExited;
                 bool hookGone = hookProc.HasExited;
 
-                if (electronGone || hookGone)
+                if (electronGone)
                 {
-                    int exitCode = electronGone ? electronProc.ExitCode : hookProc.ExitCode;
-                    Console.WriteLine("Process exited: Electron=" + electronGone + " (code " + exitCode + "), Hook=" + hookGone + " (code " + hookProc.ExitCode + ")");
+                    int exitCode = electronProc.ExitCode;
+                    Console.WriteLine("Electron exited with code " + exitCode);
 
-                    // If Electron exited cleanly (code 0), don't restart
-                    if (electronGone && exitCode == 0)
+                    // Clean shutdown (exit code 0) -- admin escape hatch or
+                    // Windows session end. Don't restart.
+                    if (exitCode == 0)
                     {
                         Console.WriteLine("Clean shutdown detected. Watchdog exiting.");
                         return 0;
                     }
 
-                    // Unexpected exit — restart the app
+                    // Unexpected exit -- restart the app
                     Console.WriteLine("Unexpected exit detected. Restarting app...");
+                    RestartApp();
+                    return 0; // This watchdog instance exits; new app spawns new watchdog
+                }
+
+                if (hookGone)
+                {
+                    // Only InputHook died. This can be a clean shutdown in
+                    // progress: on the admin escape the Electron main process
+                    // kills InputHook in before-quit and then exits with code 0
+                    // a moment later. Restarting here would resurrect the kiosk
+                    // right after the admin exited it. Give Electron a short
+                    // grace period to exit cleanly; only restart if it stays
+                    // alive (a genuine hook crash during normal operation).
+                    Console.WriteLine("InputHook exited; waiting briefly for Electron shutdown...");
+                    for (int i = 0; i < 12; i++) // ~6s grace
+                    {
+                        Thread.Sleep(500);
+                        try { electronProc.Refresh(); }
+                        catch (ArgumentException) { break; }
+                        if (electronProc.HasExited)
+                        {
+                            if (electronProc.ExitCode == 0)
+                            {
+                                Console.WriteLine("Clean shutdown detected. Watchdog exiting.");
+                                return 0;
+                            }
+                            break; // Electron crashed too -- restart below
+                        }
+                    }
+                    Console.WriteLine("Unexpected InputHook exit. Restarting app...");
                     RestartApp();
                     return 0; // This watchdog instance exits; new app spawns new watchdog
                 }

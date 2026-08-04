@@ -51,7 +51,12 @@ export function createMainWindow(loadedWhitelist: WhitelistFile): BrowserWindow 
     fullscreen: KIOSK,
     kiosk: KIOSK,
     frame: !KIOSK,
-    closable: !KIOSK,
+    // closable stays TRUE even in kiosk: closable:false makes win.close() a
+    // no-op (no 'close' event, no destroy), which would break the admin escape
+    // hatch (mainWindow.close() after setAllowClose(true)) and the session-end
+    // path. Closing is actually controlled by the 'close' handler below, which
+    // preventDefaults every close unless allowClose is set.
+    closable: true,
     minimizable: !KIOSK,
     maximizable: !KIOSK,
     resizable: !KIOSK,
@@ -129,16 +134,22 @@ export function createMainWindow(loadedWhitelist: WhitelistFile): BrowserWindow 
 
   attachNavigationGuard(siteView.webContents, () => whitelist.sites, showBlocked);
 
-  // While the site view is loading (initial load from a tile click, or an
-  // in-page navigation that actually navigates the top frame), hide the site
-  // and raise the loading skeleton. When loading finishes, swap back to the
-  // freshly-painted page. This prevents the previous site from flashing
-  // during the load.
-  siteView.webContents.on('did-start-loading', () => {
-    if (pane === 'site') setPane('loading');
+  // The loading skeleton is raised by navigateToSite() (a tile click) and
+  // hidden as soon as the new page's MAIN frame commits -- did-frame-navigate
+  // fires for the main frame at commit, when the new document is actually
+  // available. This deliberately does NOT use did-stop-loading: heavy sites
+  // (e.g. Google Classroom's landing page) keep a subresource hanging forever,
+  // so did-stop-loading never fires and the spinner would spin forever. It also
+  // ignores subframe loads, so embedded iframes can never flicker the overlay
+  // back up over an already-loaded page.
+  siteView.webContents.on('did-frame-navigate', (_event, _url, _httpCode, _statusText, isMainFrame) => {
+    if (isMainFrame && pane === 'loading') setPane('site');
   });
-  siteView.webContents.on('did-stop-loading', () => {
-    if (pane === 'loading') setPane('site');
+
+  // A failed navigation never commits a main frame, so clear the overlay there
+  // too -- the Chromium error page is shown instead of a forever-spinner.
+  siteView.webContents.on('did-fail-load', (_event, _code, _desc, _url, isMainFrame) => {
+    if (isMainFrame && pane === 'loading') setPane('site');
   });
 
   layoutViews();
