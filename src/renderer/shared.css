@@ -1,58 +1,77 @@
 /* ==========================================================================
-   LabLock — Google-style design tokens (Chrome / Google apps / MD3)
-   Light theme only. Mirrors Google's look: white surfaces, #1a73e8 accent,
-   #202124 text, #5f6368 secondary text, #dadce0 borders, #f1f3f4 hover.
+   LabLock — Design tokens (inspired by subcutai.vercel.app + workspace.google)
+   - DM Sans typeface (bundled locally, offline)
+   - GM3 blue primary (#0b57d0), pill buttons, generous rounding
+   - Bold black headings, white surfaces, soft card borders/shadows
    ========================================================================== */
+
+/* DM Sans — variable font (400–700), bundled for offline use */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url('fonts/DMSans-Variable.woff2') format('woff2');
+}
 
 :root {
   color-scheme: light;
 
-  /* Brand / accent */
-  --google-blue: #4285f4;
-  --color-primary: #1a73e8;        /* Google blue */
-  --color-primary-hover: #1765cc;
-  --color-primary-active: #185abc;
+  /* Brand / accent — GM3 Google blue */
+  --color-primary: #0b57d0;
+  --color-primary-hover: #0842a0;
+  --color-primary-active: #062e6f;
   --color-on-primary: #ffffff;
+  --color-primary-tint: rgba(11, 87, 208, 0.08);
 
   /* Text */
-  --color-text: #202124;           /* Google gray-900 */
-  --color-text-secondary: #5f6368; /* Google gray-600 */
+  --color-text: #1f1f1f;
+  --color-text-secondary: #5f6368;
   --color-text-tertiary: #80868b;
 
   /* Surfaces */
   --color-background: #ffffff;
   --color-surface: #ffffff;
-  --color-surface-hover: #f8f9fa;
-  --color-surface-variant: #f1f3f4; /* Google gray-100 */
-  --color-border: #dadce0;          /* Google gray-300 */
+  --color-surface-hover: #f8f9fc;
+  --color-surface-variant: #f1f3f4;
+  --color-border: rgba(0, 0, 0, 0.10);
+  --color-border-strong: rgba(0, 0, 0, 0.18);
+
+  /* Pastel section tints (subcutai) */
+  --color-tint-lavender: #f2effa;
+  --color-tint-snow: #f3f6fb;
+  --color-tint-ice: #dfe8f6;
 
   /* States / error */
-  --color-error: #d93025;           /* Google red */
+  --color-error: #d93025;
   --color-error-bg: #fce8e6;
-  --color-focus-ring: rgba(26, 115, 232, 0.25);
+  --color-error-tint: #ba1a1a;
+  --color-focus-ring: rgba(11, 87, 208, 0.28);
 
-  /* Tile accent palette (Google apps launcher colors) */
+  /* Tile accent palette (app launcher) */
   --tile-blue: #4285f4;
   --tile-red: #ea4335;
   --tile-yellow: #fbbc05;
   --tile-green: #34a853;
 
-  /* Google logo colors (wordmark) */
+  /* Google logo colors */
   --logo-blue: #4285f4;
   --logo-red: #ea4335;
   --logo-yellow: #fbbc05;
   --logo-green: #34a853;
 
-  /* Elevation (very subtle, Chrome-like) */
-  --shadow-1: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
-  --shadow-2: 0 1px 3px rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
-  --shadow-3: 0 1px 3px rgba(60, 64, 67, 0.3), 0 8px 16px 4px rgba(60, 64, 67, 0.15);
+  /* Elevation (subcutai soft shadows) */
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-2: 0 2px 8px rgba(15, 23, 42, 0.08), 0 6px 24px -8px rgba(15, 23, 42, 0.14);
+  --shadow-3: 0 12px 40px -12px rgba(15, 23, 42, 0.28);
 
-  /* Radius (MD3 shape scale) */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 28px;
+  /* Radius (subcutai: generous 28px; cards 20–24px) */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-3xl: 28px;
   --radius-full: 9999px;
 
   /* Spacing (4px base) */
@@ -68,13 +87,13 @@
   --space-16: 64px;
 
   /* Typography */
-  --font-family: 'Google Sans', 'Google Sans Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-mono: 'Roboto Mono', 'Cascadia Mono', Consolas, monospace;
+  --font-family: 'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
 
   /* Motion */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --duration-short: 150ms;
-  --duration-medium: 250ms;
+  --duration-medium: 260ms;
   --duration-long: 400ms;
 }
 
@@ -98,9 +117,10 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  letter-spacing: -0.1px;
 }
 
-/* Focus ring (Google style) */
+/* Focus ring */
 :focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
@@ -126,7 +146,7 @@ html, body {
   border: 2px solid var(--color-background);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-border);
+  background: var(--color-border-strong);
 }
 
 /* ==========================================================================

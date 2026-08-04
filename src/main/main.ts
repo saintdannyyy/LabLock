@@ -62,7 +62,7 @@ function showAdminEscapeDialog(mainWindow: BrowserWindow): void {
 
   escapePromptWindow = new BrowserWindow({
     width: 400,
-    height: 220,
+    height: 340,
     parent: mainWindow,
     modal: true,
     show: false,

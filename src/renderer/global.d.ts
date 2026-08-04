@@ -11,5 +11,9 @@ declare global {
       navigateTo?(url: string): Promise<NavigateResult>;
       goHome(): void;
     };
+    // Exposed by escape-preload.ts (admin escape dialog) via contextBridge.
+    escapeAPI: {
+      sendPasswordResult(password: string): void;
+    };
   }
 }

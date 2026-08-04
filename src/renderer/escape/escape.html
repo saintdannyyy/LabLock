@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self';" />
   <title>Admin Escape — LabLock</title>
   <link rel="stylesheet" href="escape.css" />
 </head>
@@ -47,67 +47,6 @@
       <button type="submit" form="escape-form" class="escape-btn escape-btn-exit" id="exitBtn">Exit Kiosk</button>
     </footer>
   </div>
-  <script>
-    const passwordInput = document.getElementById('password');
-    const toggleBtn = document.getElementById('toggle-visibility');
-    const iconEye = toggleBtn.querySelector('.icon-eye');
-    const iconEyeOff = toggleBtn.querySelector('.icon-eye-off');
-    const cancelBtn = document.getElementById('cancelBtn');
-    const exitBtn = document.getElementById('exitBtn');
-    const errorEl = document.getElementById('escape-error');
-    const form = document.getElementById('escape-form');
-    const { ipcRenderer } = require('electron');
-
-    let submitted = false;
-    let passwordVisible = false;
-
-    function submit() {
-      if (submitted) return;
-      submitted = true;
-      const pwd = passwordInput.value;
-      ipcRenderer.send('escape:password-result', pwd);
-    }
-
-    function showError() {
-      passwordInput.classList.add('error');
-      errorEl.classList.add('visible');
-      passwordInput.focus();
-    }
-
-    function clearError() {
-      passwordInput.classList.remove('error');
-      errorEl.classList.remove('visible');
-    }
-
-    exitBtn.addEventListener('click', submit);
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      submit();
-    });
-
-    passwordInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') submit();
-      clearError();
-    });
-
-    passwordInput.addEventListener('input', clearError);
-
-    cancelBtn.addEventListener('click', () => {
-      ipcRenderer.send('escape:password-result', '__CANCEL__');
-    });
-
-    // Toggle password visibility
-    toggleBtn.addEventListener('click', () => {
-      passwordVisible = !passwordVisible;
-      passwordInput.type = passwordVisible ? 'text' : 'password';
-      toggleBtn.setAttribute('aria-pressed', passwordVisible);
-      toggleBtn.setAttribute('aria-label', passwordVisible ? 'Hide password' : 'Show password');
-      iconEye.style.display = passwordVisible ? 'none' : 'block';
-      iconEyeOff.style.display = passwordVisible ? 'block' : 'none';
-    });
-
-    // Focus password field on load
-    passwordInput.focus();
-  </script>
+  <script src="escape.js"></script>
 </body>
 </html>

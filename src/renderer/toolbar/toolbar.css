@@ -1,6 +1,6 @@
-@import url('shared.css');
+@import url('../shared.css');
 
-/* Toolbar — Chrome-style 48px strip */
+/* Toolbar — clean white strip */
 html, body {
   overflow: hidden;
   height: 48px;
@@ -9,9 +9,10 @@ html, body {
 }
 
 body {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   padding: 0 var(--space-4);
   height: 100%;
   user-select: none;
@@ -25,10 +26,10 @@ body {
 }
 
 .toolbar-brand-mark {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4285f4 0%, #0b57d0 55%, #34a853 130%);
   color: #ffffff;
   font-size: 12px;
   font-weight: 700;
@@ -36,39 +37,50 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: var(--shadow-1);
 }
 
 .toolbar-brand-name {
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--color-text);
-  letter-spacing: -0.2px;
+  letter-spacing: -0.3px;
 }
 
-/* Home button — Chrome-style (transparent, gray hover pill) */
+/* Home button — GM3 filled pill, centered */
 .toolbar-btn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
-  height: 32px;
-  padding: 0 var(--space-3);
+  height: 34px;
+  padding: 0 var(--space-5);
   border: none;
   border-radius: var(--radius-full);
-  background: transparent;
-  color: var(--color-text);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   font-family: inherit;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: -0.1px;
   cursor: pointer;
-  transition: background var(--duration-short) var(--ease-standard);
+  transition: background var(--duration-short) var(--ease-standard),
+              box-shadow var(--duration-short) var(--ease-standard);
+  box-shadow: var(--shadow-1);
+  white-space: nowrap;
 }
 
 .toolbar-btn:hover {
-  background: var(--color-surface-variant);
+  background: var(--color-primary-hover);
+  box-shadow: var(--shadow-2);
 }
 
 .toolbar-btn:active {
-  background: var(--color-border);
+  background: var(--color-primary-active);
 }
 
 .toolbar-btn:focus-visible {
@@ -80,7 +92,7 @@ body {
   flex-shrink: 0;
 }
 
-/* Status — Chrome HTTPS indicator */
+/* Status — neutral lock chip on the right */
 .toolbar-status {
   margin-left: auto;
   display: inline-flex;
@@ -89,7 +101,7 @@ body {
   font-size: 12px;
   font-weight: 500;
   color: var(--color-text-secondary);
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: var(--radius-full);
   background: var(--color-surface-variant);
 }

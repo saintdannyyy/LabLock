@@ -18,6 +18,7 @@ let mainWindow: BrowserWindow | null = null;
 let toolbarView: WebContentsView;
 let contentView: WebContentsView;
 let siteView: WebContentsView;
+let loaderView: WebContentsView;
 let whitelist: WhitelistFile = { sites: [] };
 
 // When true, the window's 'close' handler stops preventing the close. Set by
@@ -94,9 +95,22 @@ export function createMainWindow(loadedWhitelist: WhitelistFile): BrowserWindow 
     },
   });
 
+  // Loading overlay. Sits above siteView in z-order. Shown whenever the site
+  // view is loading so the student never sees a blank flash or a stale page
+  // (e.g. Khan Academy still painted while Google Classroom loads underneath).
+  loaderView = new WebContentsView({
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      devTools: !KIOSK,
+    },
+  });
+
   mainWindow.contentView.addChildView(toolbarView);
   mainWindow.contentView.addChildView(contentView);
   mainWindow.contentView.addChildView(siteView);
+  mainWindow.contentView.addChildView(loaderView);
 
   if (KIOSK) {
     // Pin the window to the primary display explicitly. kiosk: true normally
@@ -110,8 +124,22 @@ export function createMainWindow(loadedWhitelist: WhitelistFile): BrowserWindow 
   toolbarView.webContents.loadFile(rendererFile('toolbar', 'toolbar.html'));
   contentView.webContents.loadFile(rendererFile('home', 'home.html'));
   siteView.setVisible(false);
+  loaderView.webContents.loadFile(rendererFile('loading', 'loading.html'));
+  loaderView.setVisible(false);
 
   attachNavigationGuard(siteView.webContents, () => whitelist.sites, showBlocked);
+
+  // While the site view is loading (initial load from a tile click, or an
+  // in-page navigation that actually navigates the top frame), hide the site
+  // and raise the loading skeleton. When loading finishes, swap back to the
+  // freshly-painted page. This prevents the previous site from flashing
+  // during the load.
+  siteView.webContents.on('did-start-loading', () => {
+    if (pane === 'site') setPane('loading');
+  });
+  siteView.webContents.on('did-stop-loading', () => {
+    if (pane === 'loading') setPane('site');
+  });
 
   layoutViews();
   mainWindow.on('resize', layoutViews);
@@ -147,19 +175,31 @@ function layoutViews(): void {
   const paneBounds = { x: 0, y: TOOLBAR_HEIGHT, width, height: Math.max(height - TOOLBAR_HEIGHT, 0) };
   contentView.setBounds(paneBounds);
   siteView.setBounds(paneBounds);
+  loaderView.setBounds(paneBounds);
+}
+
+// Which view fills the pane below the toolbar. Driving visibility from a single
+// place avoids races (e.g. did-stop-loading flipping the site view back on top
+// of the home/blocked screen after the user pressed Home mid-load).
+type Pane = 'home' | 'blocked' | 'site' | 'loading';
+let pane: Pane = 'home';
+
+function setPane(next: Pane): void {
+  pane = next;
+  contentView.setVisible(next === 'home' || next === 'blocked');
+  siteView.setVisible(next === 'site');
+  loaderView.setVisible(next === 'loading');
 }
 
 function showBlocked(attemptedUrl: string): void {
-  siteView.setVisible(false);
-  contentView.setVisible(true);
+  setPane('blocked');
   contentView.webContents.loadFile(rendererFile('blocked', 'blocked.html'), {
     query: { url: attemptedUrl },
   });
 }
 
 export function goHome(): void {
-  siteView.setVisible(false);
-  contentView.setVisible(true);
+  setPane('home');
   contentView.webContents.loadFile(rendererFile('home', 'home.html'));
 }
 
@@ -169,13 +209,18 @@ export function navigateToSite(url: string): NavigateResult {
     return { ok: false, reason: 'Site is not on the whitelist.' };
   }
 
-  contentView.setVisible(false);
-  siteView.setVisible(true);
-
-  if (currentLoadedUrl !== url) {
-    siteView.webContents.loadURL(url);
-    currentLoadedUrl = url;
+  // Resume an already-loaded site without reloading (preserves in-site state).
+  if (currentLoadedUrl === url) {
+    setPane('site');
+    return { ok: true };
   }
+
+  currentLoadedUrl = url;
+
+  // Hide the old site immediately and raise the skeleton so the previous page
+  // never flashes behind the new one. did-stop-loading swaps the site back in.
+  setPane('loading');
+  siteView.webContents.loadURL(url);
 
   return { ok: true };
 }

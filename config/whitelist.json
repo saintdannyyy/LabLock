@@ -4,12 +4,26 @@
       "name": "Google Classroom",
       "url": "https://classroom.google.com",
       "icon": "classroom.png",
-      "allowedHosts": ["classroom.google.com", "*.google.com"]
+      "allowedHosts": [
+        "classroom.google.com",
+        "*.google.com"
+      ]
     },
     {
       "name": "Khan Academy",
       "url": "https://khanacademy.org",
-      "allowedHosts": ["khanacademy.org", "*.khanacademy.org"]
+      "allowedHosts": [
+        "khanacademy.org",
+        "*.khanacademy.org"
+      ]
+    },
+    {
+      "name": "Toddle",
+      "url": "https://web.toddleapp.com",
+      "allowedHosts": [
+        "https://web.toddleapp.com",
+        "*.toddleapp.com"
+      ]
     }
   ]
 }

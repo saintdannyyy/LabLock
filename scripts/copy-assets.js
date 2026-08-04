@@ -23,6 +23,13 @@ if (fs.existsSync(sharedSrc)) {
   fs.copyFileSync(sharedSrc, sharedDist);
 }
 
+// Copy bundled fonts (DM Sans, served offline via @font-face)
+const fontsSrc = path.join(rendererSrc, 'fonts');
+const fontsDist = path.join(rendererDist, 'fonts');
+if (fs.existsSync(fontsSrc)) {
+  fs.cpSync(fontsSrc, fontsDist, { recursive: true });
+}
+
 for (const dir of fs.readdirSync(rendererSrc, { withFileTypes: true })) {
   if (!dir.isDirectory()) continue;
   const srcDir = path.join(rendererSrc, dir.name);

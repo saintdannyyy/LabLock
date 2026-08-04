@@ -1,6 +1,6 @@
-@import url('shared.css');
+@import url('../shared.css');
 
-/* Blocked screen — centered, Google error-page style */
+/* Blocked screen — centered, light Google error style */
 html, body {
   height: 100%;
   display: flex;
@@ -45,11 +45,11 @@ html, body {
 /* Title */
 .blocked-title {
   margin-bottom: var(--space-2);
-  font-size: 22px;
-  font-weight: 400;
-  line-height: 28px;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 30px;
   color: var(--color-text);
-  letter-spacing: -0.25px;
+  letter-spacing: -0.5px;
 }
 
 /* Message */
@@ -59,12 +59,12 @@ html, body {
   color: var(--color-text-secondary);
 }
 
-/* Attempted site — Chrome error style */
+/* Attempted site — neutral box */
 .blocked-url {
   margin-top: var(--space-5);
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface-hover);
   font-family: var(--font-mono);
   font-size: 12px;
@@ -75,7 +75,7 @@ html, body {
   direction: ltr;
 }
 
-/* Home button — Google filled blue button */
+/* Home button — filled blue pill */
 .blocked-btn {
   margin-top: var(--space-6);
   width: 100%;
@@ -87,8 +87,8 @@ html, body {
   color: var(--color-on-primary);
   font-family: inherit;
   font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.1px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
   cursor: pointer;
   transition: background var(--duration-short) var(--ease-standard),
               box-shadow var(--duration-short) var(--ease-standard);
