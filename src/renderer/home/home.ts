@@ -9,6 +9,20 @@ function makeFallbackIcon(name: string): HTMLElement {
   return div;
 }
 
+// Auto-fetch the site's favicon (like a browser) instead of shipping icon
+// files. Google's favicon service returns the site's real icon in a fixed
+// size; it resolves the "best" icon including sites that only publish one
+// via HTML <link> (no /favicon.ico on disk). Falls back to the letter badge
+// on failure (offline, unknown domain).
+function faviconUrl(siteUrl: string): string {
+  try {
+    const host = new URL(siteUrl).hostname;
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+  } catch {
+    return '';
+  }
+}
+
 async function init(): Promise<void> {
   const grid = document.getElementById('grid');
   const getWhitelist = window.lockdown.getWhitelist;
@@ -30,16 +44,23 @@ async function init(): Promise<void> {
     tile.type = 'button';
     tile.className = 'tile';
 
-    if (site.icon) {
-      const img = document.createElement('img');
-      img.className = 'tile-icon';
-      img.src = site.icon;
-      img.alt = '';
-      img.onerror = () => img.replaceWith(makeFallbackIcon(site.name));
-      tile.appendChild(img);
-    } else {
-      tile.appendChild(makeFallbackIcon(site.name));
-    }
+    const img = document.createElement('img');
+    img.className = 'tile-icon';
+    img.alt = '';
+    let faviconTried = false;
+    img.src = site.icon || faviconUrl(site.url);
+    img.onerror = () => {
+      if (!faviconTried) {
+        faviconTried = true;
+        const favicon = faviconUrl(site.url);
+        if (favicon) {
+          img.src = favicon;
+          return;
+        }
+      }
+      img.replaceWith(makeFallbackIcon(site.name));
+    };
+    tile.appendChild(img);
 
     const label = document.createElement('span');
     label.className = 'tile-name';
