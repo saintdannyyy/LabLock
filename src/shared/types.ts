@@ -63,6 +63,39 @@ export interface UiState {
   kiosk: boolean;
 }
 
+// Battery charge state. 'ac' = plugged in but not actively charging,
+// 'charging' = plugged in and charging, 'discharging' = running on battery.
+export type BatteryState = 'discharging' | 'charging' | 'full' | 'ac' | 'unknown';
+
+// One probe snapshot for the control panel. `ts` is epoch ms. `volume` is only
+// populated when the caller asked for it (the audio probe is slow) -- the
+// toolbar renders icons from the network/battery fields on the periodic fetch
+// and requests the volume only when the panel is open.
+export interface SystemStatus {
+  ts: number;
+  battery: { present: boolean; percent: number | null; state: BatteryState };
+  network: {
+    connected: boolean;
+    online: boolean;
+    type: 'wifi' | 'ethernet' | 'unknown';
+    name: string | null;
+    linkSpeed: string | null;
+  };
+  system: { hostname: string; ipv4: string | null; version: string; uptimeSec: number };
+  volume: { available: boolean; percent: number | null; muted: boolean | null };
+}
+
+export interface VolumeRequest {
+  percent?: number;
+  muted?: boolean;
+}
+
+export interface VolumeStatus {
+  available: boolean;
+  percent: number | null;
+  muted: boolean | null;
+}
+
 export const IPC = {
   GET_WHITELIST: 'lockdown:get-whitelist',
   NAVIGATE_TO: 'lockdown:navigate-to',
@@ -76,4 +109,10 @@ export const IPC = {
   ACTIVITY_GET: 'lockdown:activity-get',
   ACTIVITY_CLEAR: 'lockdown:activity-clear',
   ADMIN_CLOSE: 'lockdown:admin-close',
+  GET_SYSTEM_STATUS: 'lockdown:get-system-status',
+  SET_VOLUME: 'lockdown:set-volume',
+  PANEL_RESIZE: 'lockdown:panel-resize',
+  // Main-process push of a fresh SystemStatus (icons/panel data). `volume` is
+  // absent (probe skipped) so the renderer keeps its last volume view.
+  SYSTEM_STATUS: 'lockdown:system-status',
 } as const;

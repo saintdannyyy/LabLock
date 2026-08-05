@@ -48,6 +48,16 @@ Where things stand now:
   on the unauthenticated password page.
 - **Watchdog** (C# `bin/watchdog/Watchdog.exe`): monitors Electron + InputHook
   PIDs; restarts Electron on unexpected exit; respects clean shutdown (exit 0).
+- **Control panel** (Phase 4 status cluster): a macOS-style cluster at the top
+  right of the toolbar (Wi-Fi, battery, clock). Clicking it opens a dropdown
+  with the current time/date, network details (SSID/type/link speed,
+  online state), battery charge state, a master-volume slider + mute toggle,
+  system info (device name, IPv4, kiosk version, uptime), and — in kiosk mode —
+  the Shutdown/Restart buttons (moved out of the toolbar). Data comes from
+  OS-bundled PowerShell probes (`Win32_Battery`, `Get-NetConnectionProfile`,
+  `Get-NetAdapter`) plus a runtime-`Add-Type` C# COM helper for the master
+  volume; there are no native addons. The volume is only probed while the panel
+  is open (each probe compiles ~0.5–1s), so slider changes apply on release.
 - This is a **complete lockdown posture** for lab deployment. Remaining
   escape vectors: Ctrl+Alt+Del (OS-protected), local admin rights, physical
   access, bootable USB.
@@ -232,8 +242,8 @@ to drift out of sync.
 ### Toolbar UI
 
 The toolbar (`src/renderer/toolbar/`) is laid out as: brand ("Halisy
-Lablock") + site tabs on the left, Back + Home pill centered, power buttons
-right.
+Lablock") + site tabs on the left, Back + Home pill centered, and the control
+panel status cluster on the right (Wi-Fi icon, battery, clock).
 
 - **Back** — a *universal* back button, enabled whenever any pane can move
   back: on a site it drives the natural browser history
@@ -250,13 +260,38 @@ right.
   Back/forward movement across sites. Clicking a tab calls `navigateTo`.
   Tab icons are the same Google favicon service the home grid uses, with a
   letter-chip fallback; many sites overflow-scroll horizontally.
-- **Power buttons** — Shutdown/Restart as blue pills (same fill as Home) with
-  text labels, visible **only when `state.kiosk`** (packaged build or
-  `.env`/`LOCKDOWN_KIOSK=1`). Each shows a native confirm dialog before main
-  spawns `shutdown.exe /s|/r /t 1` (Electron 43's `powerMonitor` dropped
-  `shutdown()`/`restart()`). Gated in main too (`confirmPowerAction` returns
-  early unless KIOSK), so a stray IPC can't power-cycle the machine from a dev
-  window.
+- **Control panel** — macOS-style status cluster at the top right. The clock is
+  always visible (renderer `setInterval`, updates every second); the Wi-Fi and
+  battery chips refresh every 60s. Clicking the cluster opens a dropdown
+  (Scrim-below-strip; clicking outside or pressing Escape closes it):
+  - **Time/date** header (long date).
+  - **Network** — connected network name (SSID), Wi-Fi vs Ethernet, link speed,
+    online/offline. Offline/no-connection shows a "cloud-off" glyph and a red
+    warning tint on the toolbar chip.
+  - **Battery** — percent + state (Charging / On AC power / On battery /
+    Fully charged / No battery on desktops). Chip hidden entirely when no
+    battery. Red warning under 20% while discharging.
+  - **Volume** — master-volume slider + mute toggle. Every change spawns a
+    `powershell.exe` that `Add-Type`-compiles a small C# COM helper
+    (IMMDeviceEnumerator → IAudioEndpointVolume) and reads/writes the master
+    volume; the slider applies on *release* (`change`), not per drag tick.
+  - **System info** — device name, routable IPv4 (APIPA skipped), kiosk
+    version, OS uptime.
+  - **Power** (kiosk only) — Shutdown / Restart, moved here from the toolbar.
+    Each shows a native confirm dialog before main spawns
+    `shutdown.exe /s|/r /t 1` (Electron 43's `powerMonitor` dropped
+    `shutdown()`/`restart()`). Gated in main too (`confirmPowerAction` returns
+    early unless KIOSK), so a stray IPC can't power-cycle the machine from a dev
+    window.
+  - **Data sources**: `src/main/system-status.ts`. Battery/network come from
+    one fast PowerShell query (`Win32_Battery`, `Get-NetConnectionProfile`,
+    `Get-NetAdapter`) — no elevation or Location permission needed (netsh is
+    *not* used). Volume uses the Add-Type C# helper because PowerShell's COM
+    late binding can't call IUnknown-only vtable methods.
+  - **View resize**: the toolbar WebContentsView grows to the full window while
+    the panel is open (via `IPC.PANEL_RESIZE` → `setPanelOpen` in
+    `src/main/window.ts`) so the dropdown + scrim can render and swallow clicks
+    below the 48px strip; it shrinks back to 48px on close.
 
 Main pushes state to the toolbar on every pane change and on site
 `did-navigate` / `did-navigate-in-page`, so Back's enabled state, tab
@@ -445,6 +480,25 @@ Run `npm start`, then walk through:
 
 6. **Env override** — `LOCKDOWN_ADMIN_PASSWORD=mysecret npm start` (with
    `LOCKDOWN_KIOSK=1`) → escape hatch accepts `mysecret`.
+
+7. **Control panel** — in the toolbar, top right:
+   - Clock shows live time + date; Wi-Fi and battery chips appear ~1s after
+     launch. The main process owns the refresh cadence (a 60s push over IPC)
+     and pushes an update immediately on AC/battery power switches, wake-from-
+     suspend, and network up/down flips — the toolbar has no polling timer.
+   - Click the cluster → dropdown opens (time/date, network name + type + link
+     speed, battery state, volume slider, device/IP/version/uptime); the screen
+     below the strip is dimmed; clicking outside or pressing Escape closes it.
+     The toolbar strip stays pinned to the top while the view grows for the
+     dropdown.
+   - Move the volume slider to release → level changes (audible on a speaker);
+     mute toggle mutes/unmutes.
+   - In kiosk mode the panel shows Shutdown / Restart (confirm dialogs gate the
+     actual power cycle); in dev mode (`LOCKDOWN_KIOSK=0`) they are hidden.
+   - Battery chip hides on desktop hardware with no battery; Wi-Fi chip turns
+     red/cloud-off when the network drops.
+   - Volume probe is slow (~0.5–1s) only on first panel open / each slider
+     release — the 60s icon refresh does not probe volume.
 
 ## Windows version notes
 

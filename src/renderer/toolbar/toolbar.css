@@ -1,21 +1,38 @@
 @import url('../shared.css');
 
-/* Toolbar — clean white strip */
+/* Toolbar — clean white strip. Height is 100% of the toolbar view: the view is
+   48px tall normally, but the main process grows it to the full window while
+   the control panel is open so the dropdown + scrim can render below the strip. */
 html, body {
   overflow: hidden;
-  height: 48px;
+  height: 100%;
   background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+}
+
+/* `hidden` must always win over the panel/scrim positioning rules below. */
+[hidden] {
+  display: none !important;
 }
 
 body {
+  position: relative;
+  height: 100%;
+  background: var(--color-surface);
+  user-select: none;
+}
+
+/* The strip is a fixed-height row pinned to the top of the view. The main
+   process grows the toolbar view to the full window while the control panel is
+   open; this wrapper keeps the toolbar UI in place instead of re-centering
+   vertically, with the dropdown + scrim rendering below it. */
+.toolbar-strip {
   position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
   padding: 0 var(--space-4);
-  height: 100%;
-  user-select: none;
+  height: 48px;
+  background: var(--color-surface);
 }
 
 /* Brand */
@@ -198,15 +215,265 @@ body {
   cursor: default;
 }
 
-/* Power buttons — blue pills matching Home, right-aligned */
-.toolbar-power {
+/* ==========================================================================
+   Control panel (status cluster + dropdown)
+   ========================================================================== */
+
+/* Status cluster — macOS-style menu bar icons, right-aligned */
+.toolbar-status {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
-.toolbar-btn-power {
-  padding: 0 var(--space-4);
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
   font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--duration-short) var(--ease-standard),
+              color var(--duration-short) var(--ease-standard);
+}
+
+.status-chip:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.status-chip.is-warn { color: var(--color-error); }
+.status-chip.is-charging { color: #188038; }
+
+.status-chip-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.status-chip-text {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-chip-date {
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  font-size: 11.5px;
+}
+
+/* Battery glyph (CSS-drawn so the fill can track percent) */
+.battery-glyph {
+  position: relative;
+  display: inline-block;
+  width: 22px;
+  height: 11px;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+}
+
+.battery-glyph::after {
+  content: '';
+  position: absolute;
+  right: -3.5px;
+  top: 2.5px;
+  width: 2px;
+  height: 4px;
+  background: currentColor;
+  border-radius: 0 2px 2px 0;
+}
+
+.battery-glyph-fill {
+  position: absolute;
+  left: 1px;
+  top: 1px;
+  bottom: 1px;
+  width: 30%;
+  background: currentColor;
+  border-radius: 1px;
+  transition: width var(--duration-short) var(--ease-standard);
+}
+
+.battery-glyph-lg {
+  width: 26px;
+  height: 13px;
+}
+
+.battery-glyph-lg::after {
+  right: -4px;
+  top: 3px;
+  width: 2.5px;
+  height: 5px;
+}
+
+/* Scrim — covers everything below the strip while the panel is open, so the
+   dropdown is modal (clicking outside closes it) like a macOS menu-bar popover. */
+.status-scrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 48px;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 40;
+}
+
+.status-panel {
+  position: absolute;
+  top: 52px;
+  right: 12px;
+  width: 300px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+  padding: var(--space-3) 0;
+  z-index: 50;
+  user-select: none;
+}
+
+.status-panel-header {
+  padding: 0 var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-1);
+}
+
+.status-panel-time {
+  display: block;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+
+.status-panel-date {
+  display: block;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-4);
+  min-height: 36px;
+}
+
+.status-row-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.status-row-label {
+  width: 64px;
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.status-row-value {
+  margin-left: auto;
+  max-width: 55%;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-panel-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-2) 0;
+}
+
+/* Volume row */
+.volume-row .status-row-value {
+  margin-left: 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.volume-mute {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--duration-short) var(--ease-standard),
+              color var(--duration-short) var(--ease-standard);
+}
+
+.volume-mute:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.volume-slider {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* Power controls (kiosk only) */
+.status-panel-power {
+  display: flex;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+}
+
+.panel-power-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-error);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--duration-short) var(--ease-standard),
+              box-shadow var(--duration-short) var(--ease-standard);
+}
+
+.panel-power-btn:hover {
+  filter: brightness(0.94);
+  box-shadow: var(--shadow-1);
+}
+
+.panel-power-btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border-strong);
 }

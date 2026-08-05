@@ -38,10 +38,12 @@ src/main/navigation-guard.ts # attaches all navigation interceptors to site view
 src/main/ipc.ts           # ipcMain handlers (GET_WHITELIST, NAVIGATE_TO, GO_HOME)
 src/main/paths.ts         # runtime path resolution (dev vs packaged)
 src/main/input-hook.ts    # spawns InputHook.exe, returns PID for watchdog
+src/main/system-status.ts # control-panel probes: Win32_Battery/network PowerShell + Add-Type C# master volume
 src/preload/escape-preload.ts # sandboxed preload for escape dialog + admin console (escapeAPI + adminAPI)
 src/renderer/admin/       # admin console (Sites + Activity tabs), loaded by morphing the escape window
+src/renderer/toolbar/     # toolbar + macOS-style control panel (status cluster, dropdown, volume, power)
 src/shared/types.ts       # shared types + IPC channel constants
-config/whitelist.json     # site list (name, url, icon?, allowedHosts?)
+config/whitelist.json     # site list (name, url, icon?, allowedHosts?, embedHosts?)
 scripts/copy-assets.js    # copies renderer HTML/CSS to dist/ at build
 src/inputhook/InputHook.cs      # C# WH_KEYBOARD_LL hook (Alt+F4, Alt+Tab, Win, Ctrl+Shift+Esc, Ctrl+Alt+Shift+F12)
 src/watchdog/Watchdog.cs        # C# watchdog (monitors Electron + InputHook PIDs)

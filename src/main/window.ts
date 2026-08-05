@@ -29,6 +29,19 @@ let whitelist: WhitelistFile = { sites: [] };
 // system shutdown/logoff is never blocked by the kiosk.
 let allowClose = false;
 
+// Control panel open state. The toolbar page only drops its dropdown below the
+// 48px strip if its WebContentsView covers the whole window, so the view is
+// resized to full height while the panel is open (the panel's scrim then
+// swallows clicks on the area below the strip) and back to the 48px strip when
+// it closes.
+let panelOpen = false;
+
+export function setPanelOpen(open: boolean): void {
+  if (panelOpen === open) return;
+  panelOpen = open;
+  layoutViews();
+}
+
 export function setAllowClose(value: boolean): void {
   allowClose = value;
 }
@@ -48,6 +61,20 @@ export function notifyWhitelistRefreshed(): void {
     toolbarView.webContents.send(IPC.WHITELIST_REFRESHED);
   }
   pushUiState();
+}
+
+// Send an arbitrary payload to the toolbar renderer. Used by the main-process
+// system-status push (IPC.SYSTEM_STATUS).
+export function sendToToolbar(channel: string, payload: unknown): void {
+  if (toolbarView && !toolbarView.webContents.isDestroyed()) {
+    toolbarView.webContents.send(channel, payload);
+  }
+}
+
+// Run a callback once the toolbar page has finished loading (also fires on
+// reload). Used by main.ts to seed the very first system-status push.
+export function onToolbarReady(callback: () => void): void {
+  toolbarView.webContents.on('did-finish-load', callback);
 }
 
 function logActivity(kind: ActivityEvent['kind'], detail: string, url?: string): void {
@@ -260,7 +287,11 @@ export function createMainWindow(loadedWhitelist: WhitelistFile): BrowserWindow 
 function layoutViews(): void {
   if (!mainWindow) return;
   const [width, height] = mainWindow.getContentSize();
-  toolbarView.setBounds({ x: 0, y: 0, width, height: TOOLBAR_HEIGHT });
+  // The toolbar view grows to cover the whole window while the control panel
+  // is open so its dropdown + scrim can render (and intercept clicks) below
+  // the 48px strip.
+  const toolbarHeight = panelOpen ? height : TOOLBAR_HEIGHT;
+  toolbarView.setBounds({ x: 0, y: 0, width, height: toolbarHeight });
   const paneBounds = { x: 0, y: TOOLBAR_HEIGHT, width, height: Math.max(height - TOOLBAR_HEIGHT, 0) };
   contentView.setBounds(paneBounds);
   siteView.setBounds(paneBounds);

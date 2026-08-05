@@ -1,4 +1,4 @@
-import type { WhitelistFile, NavigateResult, UiState, SaveResult, ActivityPage } from '../shared/types';
+import type { WhitelistFile, NavigateResult, UiState, SaveResult, ActivityPage, SystemStatus, VolumeStatus, VolumeRequest } from '../shared/types';
 
 export {};
 
@@ -15,8 +15,12 @@ declare global {
       goBack?(): void;
       shutdown?(): void;
       restart?(): void;
+      getSystemStatus?(includeVolume: boolean): Promise<SystemStatus>;
+      setVolume?(req: VolumeRequest): Promise<VolumeStatus>;
+      setPanelOpen?(open: boolean): void;
       onUiState?(callback: (state: UiState) => void): void;
       onWhitelistRefreshed?(callback: () => void): void;
+      onSystemStatus?(callback: (status: SystemStatus) => void): void;
     };
     // Exposed by escape-preload.ts (admin escape dialog + admin console)
     // via contextBridge.

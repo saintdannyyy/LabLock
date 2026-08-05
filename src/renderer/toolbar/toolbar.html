@@ -7,46 +7,107 @@
   <link rel="stylesheet" href="toolbar.css" />
 </head>
 <body>
-  <div class="toolbar-brand" aria-hidden="true">
-    <img class="toolbar-brand-mark" src="halisy.png" alt="" draggable="false" />
-    <span class="toolbar-brand-name">Halisy Lablock</span>
+  <div class="toolbar-strip">
+    <div class="toolbar-brand" aria-hidden="true">
+      <img class="toolbar-brand-mark" src="halisy.png" alt="" draggable="false" />
+      <span class="toolbar-brand-name">Halisy Lablock</span>
+    </div>
+
+    <nav id="site-tabs" class="site-tabs" aria-label="Allowed sites" hidden></nav>
+
+    <div class="toolbar-center">
+      <button id="back-btn" type="button" class="toolbar-btn toolbar-btn-secondary" aria-label="Go back to the previous page" disabled>
+        <svg class="toolbar-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 12H5"></path>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        <span>Back</span>
+      </button>
+
+      <button id="home-btn" type="button" class="toolbar-btn" aria-label="Return to home grid">
+        <svg class="toolbar-btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        <span>Home</span>
+      </button>
+    </div>
+
+    <div id="status-cluster" class="toolbar-status" role="group" aria-label="System status">
+      <button id="status-network" type="button" class="status-chip" aria-label="Network status" title="Network status">
+        <span class="status-chip-icon" id="status-network-icon"></span>
+      </button>
+      <button id="status-battery" type="button" class="status-chip" aria-label="Battery status" hidden>
+        <span class="battery-glyph" aria-hidden="true"><span class="battery-glyph-fill" id="status-battery-fill"></span></span>
+        <span id="status-battery-pct" class="status-chip-text"></span>
+      </button>
+      <button id="status-clock" type="button" class="status-chip status-clock" aria-label="Open control panel" title="Control panel">
+        <span id="status-clock-time">--:--</span>
+        <span id="status-clock-date" class="status-chip-date"></span>
+      </button>
+    </div>
   </div>
 
-  <nav id="site-tabs" class="site-tabs" aria-label="Allowed sites" hidden></nav>
+  <div id="status-scrim" class="status-scrim" hidden></div>
+  <div id="status-panel" class="status-panel" hidden role="dialog" aria-label="Control panel">
+    <div class="status-panel-header">
+      <span class="status-panel-time" id="panel-clock">--:--</span>
+      <span class="status-panel-date" id="panel-date"></span>
+    </div>
 
-  <div class="toolbar-center">
-    <button id="back-btn" type="button" class="toolbar-btn toolbar-btn-secondary" aria-label="Go back to the previous page" disabled>
-      <svg class="toolbar-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M19 12H5"></path>
-        <polyline points="12 19 5 12 12 5"></polyline>
-      </svg>
-      <span>Back</span>
-    </button>
+    <div class="status-row">
+      <span class="status-row-icon" id="panel-network-icon"></span>
+      <span class="status-row-label">Network</span>
+      <span class="status-row-value" id="panel-network-value">—</span>
+    </div>
+    <div class="status-row">
+      <span class="status-row-icon"><span class="battery-glyph battery-glyph-lg" aria-hidden="true"><span class="battery-glyph-fill" id="panel-battery-fill"></span></span></span>
+      <span class="status-row-label">Battery</span>
+      <span class="status-row-value" id="panel-battery-value">—</span>
+    </div>
+    <div class="status-row volume-row">
+      <span class="status-row-label">Volume</span>
+      <button id="volume-mute-btn" type="button" class="volume-mute" aria-label="Mute or unmute" title="Mute / unmute"></button>
+      <input id="volume-slider" class="volume-slider" type="range" min="0" max="100" step="1" value="0" aria-label="Volume" />
+      <span class="status-row-value volume-pct" id="volume-pct">—</span>
+    </div>
 
-    <button id="home-btn" type="button" class="toolbar-btn" aria-label="Return to home grid">
-      <svg class="toolbar-btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-        <polyline points="9 22 9 12 15 12 15 22"></polyline>
-      </svg>
-      <span>Home</span>
-    </button>
-  </div>
+    <div class="status-panel-divider"></div>
 
-  <div id="power-btns" class="toolbar-power" hidden>
-    <button id="shutdown-btn" type="button" class="toolbar-btn toolbar-btn-power" aria-label="Shut down this computer" title="Shut down">
-      <svg class="toolbar-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-        <line x1="12" y1="2" x2="12" y2="12"></line>
-      </svg>
-      <span>Shut down</span>
-    </button>
-    <button id="restart-btn" type="button" class="toolbar-btn toolbar-btn-power" aria-label="Restart this computer" title="Restart">
-      <svg class="toolbar-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <polyline points="23 4 23 10 17 10"></polyline>
-        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-      </svg>
-      <span>Restart</span>
-    </button>
+    <div class="status-row">
+      <span class="status-row-label">Device</span>
+      <span class="status-row-value" id="panel-device">—</span>
+    </div>
+    <div class="status-row">
+      <span class="status-row-label">IP address</span>
+      <span class="status-row-value" id="panel-ip">—</span>
+    </div>
+    <div class="status-row">
+      <span class="status-row-label">Version</span>
+      <span class="status-row-value" id="panel-version">—</span>
+    </div>
+    <div class="status-row">
+      <span class="status-row-label">Uptime</span>
+      <span class="status-row-value" id="panel-uptime">—</span>
+    </div>
+
+    <div id="panel-power" class="status-panel-power" hidden>
+      <div class="status-panel-divider"></div>
+      <button id="panel-shutdown" type="button" class="panel-power-btn" aria-label="Shut down this computer" title="Shut down">
+        <svg class="toolbar-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+          <line x1="12" y1="2" x2="12" y2="12"></line>
+        </svg>
+        <span>Shut down</span>
+      </button>
+      <button id="panel-restart" type="button" class="panel-power-btn panel-power-btn-secondary" aria-label="Restart this computer" title="Restart">
+        <svg class="toolbar-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+        </svg>
+        <span>Restart</span>
+      </button>
+    </div>
   </div>
 
   <script src="toolbar.js"></script>

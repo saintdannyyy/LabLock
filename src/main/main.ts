@@ -1,15 +1,16 @@
 import 'dotenv/config';
-import { app, dialog, BrowserWindow, Menu, ipcMain } from 'electron';
+import { app, dialog, BrowserWindow, Menu, ipcMain, powerMonitor, net } from 'electron';
 import { loadWhitelist, saveWhitelist } from './whitelist';
-import { createMainWindow, getWhitelistForRenderer, navigateToSite, goHome, goBack, shutdownComputer, restartComputer, updateWhitelist, notifyWhitelistRefreshed, KIOSK, setAllowClose } from './window';
+import { createMainWindow, getWhitelistForRenderer, navigateToSite, goHome, goBack, shutdownComputer, restartComputer, updateWhitelist, notifyWhitelistRefreshed, KIOSK, setAllowClose, setPanelOpen, sendToToolbar, onToolbarReady } from './window';
 import { registerIpcHandlers } from './ipc';
 import { appendActivity, readActivity, clearActivity } from './history';
 import { startInputHook, stopInputHook } from './input-hook';
+import { getSystemStatus, setSystemVolume } from './system-status';
 import { preloadFile, rendererFile, watchdogExePath } from './paths';
 import { IPC } from '../shared/types';
 import { createServer } from 'net';
 import { spawn } from 'child_process';
-import type { WhitelistFile, SaveResult, ActivityPage, ActivityEvent } from '../shared/types';
+import type { WhitelistFile, SaveResult, ActivityPage, ActivityEvent, VolumeRequest } from '../shared/types';
 
 const ESCAPE_PIPE_NAME = 'lockdown-escape';
 const ADMIN_PASSWORD = process.env.LOCKDOWN_ADMIN_PASSWORD || 'admin123'; // default for dev; override in production
@@ -240,6 +241,61 @@ app.whenReady().then(() => {
     adminAuthenticated = false;
     closeEscapeWindow();
   });
+
+  // Control panel (Phase 4 status cluster). Status probing is ungated: it only
+  // reads battery/network/system info. SET_VOLUME mutates the master volume,
+  // which is equivalent to what the OS volume keys do, so it is also ungated.
+  ipcMain.handle(IPC.GET_SYSTEM_STATUS, (_event, includeVolume: unknown) => getSystemStatus(includeVolume === true));
+  ipcMain.handle(IPC.SET_VOLUME, (_event, req: unknown): ReturnType<typeof setSystemVolume> => {
+    const raw = (req ?? {}) as Partial<VolumeRequest>;
+    const percent = typeof raw.percent === 'number' && Number.isFinite(raw.percent) ? Math.max(0, Math.min(100, raw.percent)) : undefined;
+    const muted = typeof raw.muted === 'boolean' ? raw.muted : undefined;
+    return setSystemVolume({ percent, muted });
+  });
+  ipcMain.on(IPC.PANEL_RESIZE, (_event, open: unknown) => setPanelOpen(open === true));
+
+  // System-status push (control-panel icons). The main process owns the cadence
+  // and pushes snapshots over IPC -- the toolbar is a pure listener with no
+  // renderer-side polling timer. Windows has no event stream for battery
+  // percentage or SSID changes, so a 60s timer is the floor; real transitions
+  // push immediately via the events below (AC/battery switch, wake-from-suspend,
+  // and a lightweight net.isOnline() flip watcher).
+  const STATUS_PUSH_MS = 60_000;
+  let statusPushTimer: NodeJS.Timeout | null = null;
+  let statusPushInFlight = false;
+  const pushSystemStatus = async (force = false): Promise<void> => {
+    if (statusPushInFlight) return; // coalesce; the 60s cadence keeps it fresh
+    statusPushInFlight = true;
+    try {
+      const status = await getSystemStatus(false, force);
+      sendToToolbar(IPC.SYSTEM_STATUS, status);
+    } catch {
+      // probe failures already degrade to "unknown" inside system-status.ts
+    } finally {
+      statusPushInFlight = false;
+    }
+  };
+
+  onToolbarReady(() => {
+    void pushSystemStatus(true); // seed first snapshot once the toolbar is up
+    if (!statusPushTimer) {
+      statusPushTimer = setInterval(() => void pushSystemStatus(), STATUS_PUSH_MS);
+    }
+  });
+  // electron.d.ts v43 only types the macOS powerMonitor events, so register the
+  // Windows events through the raw EventEmitter (same cast as query-session-end).
+  (powerMonitor as NodeJS.EventEmitter).on('on-ac', () => void pushSystemStatus(true));
+  (powerMonitor as NodeJS.EventEmitter).on('on-battery', () => void pushSystemStatus(true));
+  (powerMonitor as NodeJS.EventEmitter).on('resume', () => void pushSystemStatus(true));
+  // net has no connectivity events (only net.isOnline()), so watch the flip.
+  let lastOnline = net.isOnline();
+  const onlineWatcher = setInterval(() => {
+    const online = net.isOnline();
+    if (online !== lastOnline) {
+      lastOnline = online;
+      void pushSystemStatus(true);
+    }
+  }, 10_000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
