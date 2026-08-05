@@ -1,14 +1,6 @@
 {
   "sites": [
     {
-      "name": "Google",
-      "url": "https://google.com",
-      "allowedHosts": [
-        "google.com",
-        "*.google.com"
-      ]
-    },
-    {
       "name": "J100 Coders",
       "url": "https://j100coders.org",
       "allowedHosts": [
