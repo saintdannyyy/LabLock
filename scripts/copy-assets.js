@@ -30,12 +30,25 @@ if (fs.existsSync(fontsSrc)) {
   fs.cpSync(fontsSrc, fontsDist, { recursive: true });
 }
 
+// Static assets each renderer page may need alongside its .html/.css/.js.
+const RENDERER_ASSET_EXTS = new Set([
+  '.html',
+  '.css',
+  '.png',
+  '.svg',
+  '.ico',
+  '.jpg',
+  '.jpeg',
+  '.webp',
+]);
+
 for (const dir of fs.readdirSync(rendererSrc, { withFileTypes: true })) {
   if (!dir.isDirectory()) continue;
   const srcDir = path.join(rendererSrc, dir.name);
   const distDir = path.join(rendererDist, dir.name);
   for (const file of fs.readdirSync(srcDir)) {
-    if (file.endsWith('.html') || file.endsWith('.css')) {
+    const ext = path.extname(file).toLowerCase();
+    if (RENDERER_ASSET_EXTS.has(ext)) {
       fs.mkdirSync(distDir, { recursive: true });
       fs.copyFileSync(path.join(srcDir, file), path.join(distDir, file));
     }

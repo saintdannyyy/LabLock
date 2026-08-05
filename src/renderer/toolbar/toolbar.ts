@@ -29,16 +29,16 @@ function tabFaviconUrl(siteUrl: string): string {
   }
 }
 
-function makeTabIcon(name: string, url: string): HTMLElement {
+function makeTabIcon(site: { name: string; url: string; icon?: string }): HTMLElement {
   const img = document.createElement('img');
   img.className = 'site-tab-icon';
   img.alt = '';
   let faviconTried = false;
-  img.src = tabFaviconUrl(url);
+  img.src = site.icon || tabFaviconUrl(site.url);
   img.onerror = () => {
     if (!faviconTried) {
       faviconTried = true;
-      const favicon = tabFaviconUrl(url);
+      const favicon = tabFaviconUrl(site.url);
       if (favicon) {
         img.src = favicon;
         return;
@@ -46,7 +46,7 @@ function makeTabIcon(name: string, url: string): HTMLElement {
     }
     const letter = document.createElement('span');
     letter.className = 'site-tab-letter';
-    letter.textContent = (name.trim()[0] || '?').toUpperCase();
+    letter.textContent = (site.name.trim()[0] || '?').toUpperCase();
     img.replaceWith(letter);
   };
   return img;
@@ -66,7 +66,7 @@ async function initTabs(): Promise<void> {
     tab.title = site.name;
     tab.setAttribute('aria-label', site.name);
     tab.dataset.url = site.url;
-    tab.appendChild(makeTabIcon(site.name, site.url));
+    tab.appendChild(makeTabIcon(site));
     const label = document.createElement('span');
     label.textContent = site.name;
     tab.appendChild(label);

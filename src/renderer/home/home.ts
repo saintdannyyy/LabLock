@@ -47,6 +47,12 @@ async function init(): Promise<void> {
     const img = document.createElement('img');
     img.className = 'tile-icon';
     img.alt = '';
+    if (site.icon) {
+      // A shipped custom icon (whitelist `icon` file) may be non-square (e.g. a
+      // wide wordmark) — contain it on a white tile instead of cover-cropping.
+      img.style.objectFit = 'contain';
+      img.style.background = 'var(--color-surface)';
+    }
     let faviconTried = false;
     img.src = site.icon || faviconUrl(site.url);
     img.onerror = () => {

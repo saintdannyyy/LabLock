@@ -29,15 +29,10 @@ body {
 .toolbar-brand-mark {
   width: 28px;
   height: 28px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #4285f4 0%, #0b57d0 55%, #34a853 130%);
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 10px; /* --radius-sm, matching the design pattern */
+  background: var(--color-surface);
+  object-fit: contain;
+  padding: 2px;
   box-shadow: var(--shadow-1);
 }
 
