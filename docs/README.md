@@ -177,12 +177,21 @@ Edit `config/whitelist.json`:
 - Matching is case-insensitive and scheme-restricted: `javascript:`,
   `file:`, `data:`, `chrome:`, `about:`, and any other non-`http(s)` scheme
   is always blocked, regardless of whitelist content.
-- **Iframes are checked against the same whitelist as the main page.** If a
-  whitelisted site legitimately embeds content from another domain (e.g. a
-  YouTube embed, a Google Docs viewer), that domain needs to be added to
-  `allowedHosts` too, or the embed will show as blocked/blank. Test each
-  real site you whitelist end-to-end — sites like Google Classroom often
-  span several `*.google.com` subdomains for login/embedded content.
+- **Iframes are checked separately from the main page.** A whitelisted site's
+  embeds (e.g. a YouTube embed, a Google Maps frame, a Disqus comment thread)
+  are blocked unless the embed's host is licensed. Two ways to allow an
+  iframe host:
+  - **`allowedHosts`** — the host becomes *browseable*: it can load as a
+    main page, in a frame, via popups, everything. Use only when users
+    should be able to visit that host directly.
+  - **`embedHosts`** — the host may load **only inside an iframe** on a
+    whitelisted page. It can never be navigated to as a top-level page,
+    opened as a popup, or appear as a tile. This is the right tool for
+    embeds you want working without making the embedded site browsable
+    (e.g. `["youtube.com", "*.youtube.com", "google.com", "*.google.com",
+    "disqus.com", "*.disqus.com"]`).
+  Test each real site you whitelist end-to-end — sites like Google Classroom
+  often span several `*.google.com` subdomains for login/embedded content.
 - **What this does *not* restrict:** subresource requests (images, scripts,
   `fetch`/XHR, fonts, CSS) made by an already-loaded whitelisted page. Only
   *navigation* (changing what page or frame is displayed) is gated. A

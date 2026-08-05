@@ -113,11 +113,26 @@ function validateEntry(entry: unknown, index: number): WhitelistEntry {
     allowedHosts = rules;
   }
 
+  let embedHosts: string[] | undefined;
+  if (e.embedHosts !== undefined) {
+    if (!Array.isArray(e.embedHosts) || !e.embedHosts.every((h) => typeof h === 'string')) {
+      throw new Error(`Whitelist entry #${index} ("${e.name}") "embedHosts" must be an array of strings.`);
+    }
+    const rules = e.embedHosts as string[];
+    for (const rule of rules) {
+      if (!isValidHostRule(rule)) {
+        throw new Error(`Whitelist entry #${index} ("${e.name}") has a malformed "embedHosts" rule: "${rule}".`);
+      }
+    }
+    embedHosts = rules;
+  }
+
   return {
     name: e.name,
     url: e.url,
     icon: typeof e.icon === 'string' ? e.icon : undefined,
     allowedHosts,
+    embedHosts,
   };
 }
 
@@ -158,11 +173,31 @@ function hostMatchesRule(candidateHost: string, rule: string): boolean {
   return host === normalizedRule;
 }
 
+function hostAllowedByAnyEntry(host: string, whitelist: WhitelistEntry[], includeEmbed: boolean): boolean {
+  for (const entry of whitelist) {
+    const rules = entry.allowedHosts && entry.allowedHosts.length > 0
+      ? entry.allowedHosts
+      : [new URL(entry.url).hostname];
+
+    if (rules.some((rule) => hostMatchesRule(host, rule))) {
+      return true;
+    }
+
+    // embedHosts only ever license sub-frame (iframe) loads, never top-level
+    // browsing -- include them only for the frame check.
+    if (includeEmbed && entry.embedHosts?.some((rule) => hostMatchesRule(host, rule))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Single source of truth for "is this URL allowed" -- used by every
- * interception point (will-navigate, will-redirect, will-frame-navigate,
- * setWindowOpenHandler) and by the navigate-to IPC handler, so there is no
- * risk of the rules drifting between call sites.
+ * interception point (will-navigate, will-redirect, setWindowOpenHandler)
+ * and by the navigate-to IPC handler, so there is no risk of the rules
+ * drifting between call sites. This is the STRICT check: embedHosts are NOT
+ * honored here.
  */
 export function isUrlAllowed(targetUrl: string, whitelist: WhitelistEntry[]): boolean {
   let parsed: URL;
@@ -179,17 +214,26 @@ export function isUrlAllowed(targetUrl: string, whitelist: WhitelistEntry[]): bo
     return false;
   }
 
-  const host = parsed.hostname;
+  return hostAllowedByAnyEntry(parsed.hostname, whitelist, false);
+}
 
-  for (const entry of whitelist) {
-    const rules = entry.allowedHosts && entry.allowedHosts.length > 0
-      ? entry.allowedHosts
-      : [new URL(entry.url).hostname];
-
-    if (rules.some((rule) => hostMatchesRule(host, rule))) {
-      return true;
-    }
+/**
+ * Frame check for sub-frame (iframe) navigations: a frame URL may be allowed
+ * either strictly (allowedHosts / the site's own host) OR via embedHosts.
+ * Never call this for main-frame navigations, redirects, or window.open --
+ * those must use isUrlAllowed().
+ */
+export function isFrameUrlAllowed(targetUrl: string, whitelist: WhitelistEntry[]): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(targetUrl);
+  } catch {
+    return false;
   }
 
-  return false;
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return false;
+  }
+
+  return hostAllowedByAnyEntry(parsed.hostname, whitelist, true);
 }

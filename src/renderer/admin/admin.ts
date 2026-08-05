@@ -11,6 +11,7 @@
     url: string;
     icon?: string;
     allowedHosts?: string[];
+    embedHosts?: string[];
   };
 
   type ActivityEvent = {
@@ -40,6 +41,7 @@
   const fName = document.getElementById('edit-name') as HTMLInputElement | null;
   const fUrl = document.getElementById('edit-url') as HTMLInputElement | null;
   const fHosts = document.getElementById('edit-hosts') as HTMLTextAreaElement | null;
+  const fEmbedHosts = document.getElementById('edit-embed-hosts') as HTMLTextAreaElement | null;
   const fIcon = document.getElementById('edit-icon') as HTMLInputElement | null;
   const editError = document.getElementById('edit-error') as HTMLElement | null;
   const modalCancelBtn = document.getElementById('modal-cancel-btn') as HTMLButtonElement | null;
@@ -165,6 +167,7 @@
     if (fName) fName.value = site?.name ?? '';
     if (fUrl) fUrl.value = site?.url ?? '';
     if (fHosts) fHosts.value = (site?.allowedHosts ?? []).join('\n');
+    if (fEmbedHosts) fEmbedHosts.value = (site?.embedHosts ?? []).join('\n');
     if (fIcon) fIcon.value = site?.icon ?? '';
     if (modal) modal.hidden = false;
     fName?.focus();
@@ -201,10 +204,16 @@
       .map((h) => h.trim())
       .filter((h) => h !== '');
 
+    const embedHosts = (fEmbedHosts?.value ?? '')
+      .split(/[\n,]/)
+      .map((h) => h.trim())
+      .filter((h) => h !== '');
+
     const icon = (fIcon?.value ?? '').trim() || undefined;
 
     const entry: WhitelistEntry = { name, url };
     if (allowedHosts.length > 0) entry.allowedHosts = allowedHosts;
+    if (embedHosts.length > 0) entry.embedHosts = embedHosts;
     if (icon) entry.icon = icon;
 
     if (editingIndex >= 0 && editingIndex < sites.length) {

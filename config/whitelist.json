@@ -7,6 +7,14 @@
       "allowedHosts": [
         "j100coders.org",
         "*.j100coders.org"
+      ],
+      "embedHosts": [
+        "youtube.com",
+        "*.youtube.com",
+        "google.com",
+        "*.google.com",
+        "disqus.com",
+        "*.disqus.com"
       ]
     },
     {

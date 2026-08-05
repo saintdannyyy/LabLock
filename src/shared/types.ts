@@ -3,6 +3,10 @@ export interface WhitelistEntry {
   url: string;
   icon?: string;
   allowedHosts?: string[];
+  // Hosts allowed ONLY inside iframes on whitelisted pages (YouTube/Google
+  // Maps/Disqus embeds, etc.). Never browseable as a top-level page: main-frame
+  // navigation, redirects, popups and tiles all ignore this list.
+  embedHosts?: string[];
 }
 
 export interface WhitelistFile {

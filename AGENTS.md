@@ -81,9 +81,9 @@ Per-user registrations follow the user; on lab machines with per-student account
 - `"example.com"` → matches ONLY `example.com` (not `www`, not subdomains)
 - `"*.example.com"` → matches subdomains ONLY (`a.example.com`), NOT bare `example.com`
 - Must list both explicitly if both needed: `["example.com", "*.example.com"]`
+- `allowedHosts` = fully browseable (main page, frames, popups). `embedHosts` = iframe-only; never a top-level page/popup/tile (for YouTube/Google Maps/Disqus embeds that should NOT be visitable)
 - Case-insensitive; scheme-restricted: non-http(s) always blocked
-- Iframes checked against same whitelist; embedded content from other domains needs explicit `allowedHosts`
-- Subresource requests (images, scripts, fetch, CSS) NOT restricted — only navigation
+- Iframes checked via `allowedHosts` OR `embedHosts` (`isFrameUrlAllowed`); top-level nav/redirects/popups strictly via `isUrlAllowed` (ignores embedHosts)
 
 ## Dev environment quirks
 - `ELECTRON_RUN_AS_NODE=1` may be set in shell profiles — must unset before launching GUI: `$env:ELECTRON_RUN_AS_NODE=$null`
