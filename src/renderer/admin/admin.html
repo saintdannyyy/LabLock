@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' https:; font-src 'self';" />
+  <title>Admin Console — Halisy Lablock</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <div class="admin-shell" role="dialog" aria-labelledby="admin-title" aria-modal="true">
+    <header class="admin-header">
+      <div class="admin-title-group">
+        <h1 id="admin-title" class="admin-title">Admin Console</h1>
+        <p class="admin-subtitle">Halisy Lablock — signed in as administrator</p>
+      </div>
+    </header>
+
+    <nav class="admin-tabs" aria-label="Admin sections">
+      <button type="button" class="admin-tab is-active" data-tab="sites" aria-controls="tab-sites">Allowed Sites</button>
+      <button type="button" class="admin-tab" data-tab="activity" aria-controls="tab-activity">Activity Log</button>
+    </nav>
+
+    <main class="admin-body">
+      <!-- Allowed sites -->
+      <section id="tab-sites" class="admin-pane" aria-label="Allowed sites">
+        <div class="pane-toolbar">
+          <button type="button" class="admin-btn admin-btn-primary" id="add-site-btn">Add site</button>
+          <span id="sites-status" class="admin-status" aria-live="polite"></span>
+        </div>
+        <ul id="sites-list" class="sites-list"></ul>
+        <div class="pane-footer">
+          <button type="button" class="admin-btn admin-btn-save" id="save-btn">Save changes</button>
+          <button type="button" class="admin-btn" id="discard-btn">Done</button>
+        </div>
+      </section>
+
+      <!-- Activity log -->
+      <section id="tab-activity" class="admin-pane" aria-label="Activity log" hidden>
+        <div class="pane-toolbar">
+          <input type="search" id="activity-search" class="admin-search" placeholder="Search URL or description…" aria-label="Search activity">
+          <select id="activity-filter" class="admin-filter" aria-label="Filter by type">
+            <option value="">All types</option>
+            <option value="navigate">Navigations</option>
+            <option value="blocked">Blocked</option>
+            <option value="power">Power</option>
+            <option value="home">Home</option>
+            <option value="back">Back</option>
+            <option value="escape">Admin</option>
+            <option value="whitelist-save">Config</option>
+            <option value="app-start">System</option>
+          </select>
+          <button type="button" class="admin-btn admin-btn-danger" id="clear-history-btn">Clear history</button>
+        </div>
+        <ul id="activity-list" class="activity-list"></ul>
+        <button type="button" class="admin-btn admin-btn-more" id="load-more-btn" hidden>Load more</button>
+      </section>
+    </main>
+  </div>
+
+  <!-- Add / edit site modal -->
+  <div id="edit-modal" class="modal" hidden>
+    <form class="modal-card" id="edit-form" novalidate>
+      <h2 id="edit-title" class="modal-title">Add site</h2>
+      <div class="modal-field">
+        <label for="edit-name">Name</label>
+        <input type="text" id="edit-name" autocomplete="off" spellcheck="false" placeholder="e.g. J100 Coders">
+      </div>
+      <div class="modal-field">
+        <label for="edit-url">URL</label>
+        <input type="text" id="edit-url" autocomplete="off" spellcheck="false" placeholder="https://example.org">
+      </div>
+      <div class="modal-field">
+        <label for="edit-hosts">Allowed hosts <span class="field-hint">(one per line — the main site is always allowed)</span></label>
+        <textarea id="edit-hosts" rows="3" spellcheck="false" placeholder="*.example.org&#10;example.com"></textarea>
+      </div>
+      <div class="modal-field">
+        <label for="edit-icon">Icon file name <span class="field-hint">(optional)</span></label>
+        <input type="text" id="edit-icon" autocomplete="off" spellcheck="false" placeholder="e.g. j100.png">
+      </div>
+      <p id="edit-error" class="modal-error" aria-live="polite"></p>
+      <div class="modal-actions">
+        <button type="button" class="admin-btn" id="modal-cancel-btn">Cancel</button>
+        <button type="submit" class="admin-btn admin-btn-save" id="modal-save-btn">Apply</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -14,6 +14,7 @@ const IPC = {
   SHUTDOWN: 'lockdown:shutdown',
   RESTART: 'lockdown:restart',
   UI_STATE: 'lockdown:ui-state',
+  WHITELIST_REFRESHED: 'lockdown:whitelist-refreshed',
 } as const;
 
 contextBridge.exposeInMainWorld('lockdown', {
@@ -25,5 +26,8 @@ contextBridge.exposeInMainWorld('lockdown', {
   restart: (): void => ipcRenderer.send(IPC.RESTART),
   onUiState: (callback: (state: UiState) => void): void => {
     ipcRenderer.on(IPC.UI_STATE, (_event, state: UiState) => callback(state));
+  },
+  onWhitelistRefreshed: (callback: () => void): void => {
+    ipcRenderer.on(IPC.WHITELIST_REFRESHED, () => callback());
   },
 });

@@ -3,8 +3,9 @@ import { spawn } from 'child_process';
 import { attachNavigationGuard } from './navigation-guard';
 import { preloadFile, rendererFile, iconFileUrl } from './paths';
 import { isUrlAllowed } from './whitelist';
+import { appendActivity } from './history';
 import { IPC } from '../shared/types';
-import type { WhitelistFile, NavigateResult, Pane, UiState } from '../shared/types';
+import type { WhitelistFile, NavigateResult, Pane, UiState, ActivityEvent } from '../shared/types';
 
 const TOOLBAR_HEIGHT = 44;
 
@@ -30,6 +31,44 @@ let allowClose = false;
 
 export function setAllowClose(value: boolean): void {
   allowClose = value;
+}
+
+// Swap the live whitelist after a successful admin save. Navigation guards and
+// the home grid read it through live closures (attachNavigationGuard gets
+// () => whitelist.sites), so enforcement updates immediately without a restart.
+export function updateWhitelist(file: WhitelistFile): void {
+  whitelist = file;
+}
+
+// The toolbar builds its site tabs once at load, so tell it to rebuild after a
+// whitelist change. Also re-push UI state (a removed active site must clear its
+// active-tab highlight).
+export function notifyWhitelistRefreshed(): void {
+  if (toolbarView && !toolbarView.webContents.isDestroyed()) {
+    toolbarView.webContents.send(IPC.WHITELIST_REFRESHED);
+  }
+  pushUiState();
+}
+
+function logActivity(kind: ActivityEvent['kind'], detail: string, url?: string): void {
+  appendActivity({ ts: new Date().toISOString(), kind, detail, url });
+}
+
+function siteNameFor(url: string): string {
+  let host: string;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    return url;
+  }
+  for (const site of whitelist.sites) {
+    try {
+      if (new URL(site.url).hostname === host) return site.name;
+    } catch {
+      // skip entries with unparseable urls
+    }
+  }
+  return url;
 }
 
 // Tracks the whitelist entry's configured url currently shown in siteView
@@ -323,6 +362,13 @@ function refreshActiveSite(url: string): void {
 }
 
 function showBlocked(attemptedUrl: string): void {
+  let host: string;
+  try {
+    host = new URL(attemptedUrl).hostname;
+  } catch {
+    host = attemptedUrl;
+  }
+  logActivity('blocked', `Blocked: ${host}`, attemptedUrl);
   blockedFrom = currentLocation();
   activeSiteUrl = null;
   setPane('blocked');
@@ -332,6 +378,7 @@ function showBlocked(attemptedUrl: string): void {
 }
 
 export function goHome(): void {
+  logActivity('home', 'Returned to home grid');
   const loc = currentLocation();
   if (loc.pane === 'site') pushBackIfNew(loc);
   blockedFrom = null;
@@ -354,6 +401,7 @@ export function navigateToSite(url: string): NavigateResult {
     blockedFrom = null;
     activeSiteUrl = url;
     setPane('site');
+    logActivity('navigate', siteNameFor(url), url);
     return { ok: true };
   }
 
@@ -361,6 +409,7 @@ export function navigateToSite(url: string): NavigateResult {
   blockedFrom = null;
   currentLoadedUrl = url;
   activeSiteUrl = url;
+  logActivity('navigate', siteNameFor(url), url);
 
   // Hide the old site immediately and raise the skeleton so the previous page
   // never flashes behind the new one. did-frame-navigate swaps the site back in.
@@ -376,6 +425,7 @@ export function navigateToSite(url: string): NavigateResult {
 // walks the app-level stack of locations the user left.
 export function goBack(): void {
   if (pane === 'loading') return;
+  logActivity('back', 'Back');
 
   if (pane === 'blocked') {
     restoreLocation(blockedFrom ?? { pane: 'home' });
@@ -418,6 +468,7 @@ function confirmPowerAction(action: 'shutdown' | 'restart'): void {
     })
     .then(({ response }) => {
       if (response !== 0) return;
+      logActivity('power', isShutdown ? 'Shut down' : 'Restart');
       spawn('shutdown.exe', [isShutdown ? '/s' : '/r', '/t', '1'], {
         stdio: 'ignore',
         windowsHide: true,

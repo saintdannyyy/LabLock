@@ -14,6 +14,37 @@ export interface NavigateResult {
   reason?: string;
 }
 
+// Result of a whitelist save. `path` is the config file written to disk.
+export type SaveResult = { ok: true; path: string } | { ok: false; error: string };
+
+// Every logged user/admin action. `ts` is an ISO timestamp; `kind` drives the
+// activity-log badge/filter; `url` is the URL involved when there is one;
+// `detail` is a short human-readable description.
+export type ActivityKind =
+  | 'app-start'
+  | 'app-quit'
+  | 'navigate'
+  | 'home'
+  | 'back'
+  | 'blocked'
+  | 'power'
+  | 'escape'
+  | 'whitelist-save';
+
+export interface ActivityEvent {
+  ts: string;
+  kind: ActivityKind;
+  url?: string;
+  detail: string;
+}
+
+// One page of the activity log, newest-first. `total` is the count of all
+// events on disk so the UI can page through with (offset, limit).
+export interface ActivityPage {
+  total: number;
+  events: ActivityEvent[];
+}
+
 // Which view fills the pane below the toolbar. Mirrors the `Pane` union
 // in src/main/window.ts.
 export type Pane = 'home' | 'blocked' | 'site' | 'loading';
@@ -36,4 +67,9 @@ export const IPC = {
   SHUTDOWN: 'lockdown:shutdown',
   RESTART: 'lockdown:restart',
   UI_STATE: 'lockdown:ui-state',
+  SAVE_WHITELIST: 'lockdown:save-whitelist',
+  WHITELIST_REFRESHED: 'lockdown:whitelist-refreshed',
+  ACTIVITY_GET: 'lockdown:activity-get',
+  ACTIVITY_CLEAR: 'lockdown:activity-clear',
+  ADMIN_CLOSE: 'lockdown:admin-close',
 } as const;

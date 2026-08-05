@@ -75,6 +75,14 @@ async function initTabs(): Promise<void> {
   }
 }
 
+// Rebuild the site tabs after an admin whitelist save (tabs are built once at
+// load, so without this the toolbar would show a stale site list).
+async function rebuildTabs(): Promise<void> {
+  if (!tabsEl) return;
+  tabsEl.replaceChildren();
+  await initTabs();
+}
+
 function applyUiState(state: UiState): void {
   if (backBtn) {
     // Universal back: enabled whenever main says there's somewhere to go
@@ -95,4 +103,5 @@ function applyUiState(state: UiState): void {
 }
 
 window.lockdown.onUiState?.(applyUiState);
+window.lockdown.onWhitelistRefreshed?.(rebuildTabs);
 initTabs();

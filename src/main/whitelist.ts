@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import { whitelistConfigPath } from './paths';
-import type { WhitelistEntry, WhitelistFile } from '../shared/types';
+import type { WhitelistEntry, WhitelistFile, SaveResult } from '../shared/types';
 
 /**
  * Loads and validates config/whitelist.json. Fails loudly (throws) on any
@@ -24,12 +24,50 @@ export function loadWhitelist(): WhitelistFile {
     throw new Error(`Whitelist config at ${configPath} is not valid JSON: ${(err as Error).message}`);
   }
 
-  return validateWhitelist(parsed, configPath);
+  return validateWhitelist(parsed, `config at ${configPath}`);
 }
 
-function validateWhitelist(parsed: unknown, configPath: string): WhitelistFile {
+/**
+ * Validates and writes a whitelist file from the admin console. The write is
+ * atomic (temp file + rename) so the config the kiosk boots from can never be
+ * left half-written by a crash mid-save. On success the caller still re-reads
+ * the file with loadWhitelist() to refresh the live in-memory copy.
+ */
+export function saveWhitelist(payload: unknown): SaveResult {
+  const configPath = whitelistConfigPath();
+
+  let validated: WhitelistFile;
+  try {
+    validated = validateWhitelist(payload, 'save payload');
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+
+  const json = JSON.stringify(validated, null, 2) + '\n';
+  const tmpPath = configPath + '.tmp';
+  try {
+    fs.writeFileSync(tmpPath, json, 'utf-8');
+    fs.renameSync(tmpPath, configPath);
+  } catch (err) {
+    try {
+      fs.unlinkSync(tmpPath);
+    } catch {
+      // temp cleanup is best-effort
+    }
+    return { ok: false, error: `Failed to write whitelist config: ${(err as Error).message}` };
+  }
+
+  return { ok: true, path: configPath };
+}
+
+/**
+ * Single source of truth for whitelist validation -- used both at load time
+ * and on save, so the admin console can never write a file the kiosk would
+ * refuse to load. `source` is a human label used in error messages.
+ */
+export function validateWhitelist(parsed: unknown, source: string): WhitelistFile {
   if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as Record<string, unknown>).sites)) {
-    throw new Error(`Whitelist config at ${configPath} must be an object with a "sites" array.`);
+    throw new Error(`Whitelist ${source} must be an object with a "sites" array.`);
   }
 
   const rawSites = (parsed as { sites: unknown[] }).sites;

@@ -1,4 +1,4 @@
-import type { WhitelistFile, NavigateResult, UiState } from '../shared/types';
+import type { WhitelistFile, NavigateResult, UiState, SaveResult, ActivityPage } from '../shared/types';
 
 export {};
 
@@ -16,10 +16,19 @@ declare global {
       shutdown?(): void;
       restart?(): void;
       onUiState?(callback: (state: UiState) => void): void;
+      onWhitelistRefreshed?(callback: () => void): void;
     };
-    // Exposed by escape-preload.ts (admin escape dialog) via contextBridge.
+    // Exposed by escape-preload.ts (admin escape dialog + admin console)
+    // via contextBridge.
     escapeAPI: {
       sendPasswordResult(password: string): void;
+    };
+    adminAPI: {
+      getWhitelist(): Promise<WhitelistFile>;
+      saveWhitelist(file: WhitelistFile): Promise<SaveResult>;
+      getActivity(offset: number, limit: number): Promise<ActivityPage>;
+      clearActivity(): Promise<{ ok: boolean }>;
+      close(): void;
     };
   }
 }

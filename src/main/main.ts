@@ -1,19 +1,37 @@
 import 'dotenv/config';
 import { app, dialog, BrowserWindow, Menu, ipcMain } from 'electron';
-import { loadWhitelist } from './whitelist';
-import { createMainWindow, getWhitelistForRenderer, navigateToSite, goHome, goBack, shutdownComputer, restartComputer, KIOSK, setAllowClose } from './window';
+import { loadWhitelist, saveWhitelist } from './whitelist';
+import { createMainWindow, getWhitelistForRenderer, navigateToSite, goHome, goBack, shutdownComputer, restartComputer, updateWhitelist, notifyWhitelistRefreshed, KIOSK, setAllowClose } from './window';
 import { registerIpcHandlers } from './ipc';
+import { appendActivity, readActivity, clearActivity } from './history';
 import { startInputHook, stopInputHook } from './input-hook';
 import { preloadFile, rendererFile, watchdogExePath } from './paths';
+import { IPC } from '../shared/types';
 import { createServer } from 'net';
 import { spawn } from 'child_process';
-import type { WhitelistFile } from '../shared/types';
+import type { WhitelistFile, SaveResult, ActivityPage, ActivityEvent } from '../shared/types';
 
 const ESCAPE_PIPE_NAME = 'lockdown-escape';
 const ADMIN_PASSWORD = process.env.LOCKDOWN_ADMIN_PASSWORD || 'admin123'; // default for dev; override in production
 
 let escapePipeServer: ReturnType<typeof createServer> | null = null;
 let escapePromptWindow: BrowserWindow | null = null;
+
+// Set only after a correct admin password. Every privileged IPC handler
+// (whitelist save, activity read/clear) refuses to act without it, so a
+// compromised non-admin renderer cannot write the whitelist or read history.
+let adminAuthenticated = false;
+
+function logActivity(kind: ActivityEvent['kind'], detail: string, url?: string): void {
+  appendActivity({ ts: new Date().toISOString(), kind, detail, url });
+}
+
+function closeEscapeWindow(): void {
+  if (escapePromptWindow) {
+    escapePromptWindow.close();
+    escapePromptWindow = null;
+  }
+}
 
 function startEscapePipeServer(mainWindow: BrowserWindow): void {
   escapePipeServer = createServer((socket) => {
@@ -96,21 +114,29 @@ function showAdminEscapeDialog(mainWindow: BrowserWindow): void {
 
   escapePromptWindow.on('closed', () => {
     escapePromptWindow = null;
+    adminAuthenticated = false;
   });
 
   // Listen for password result
   const channel = 'escape:password-result';
   const handler = (_evt: Electron.IpcMainEvent, enteredPassword: string) => {
     ipcMain.removeListener(channel, handler);
-    if (escapePromptWindow) {
-      escapePromptWindow.close();
-      escapePromptWindow = null;
+    if (enteredPassword === '__CANCEL__') {
+      closeEscapeWindow();
+      return;
     }
-    if (enteredPassword === '__CANCEL__') return;
     if (enteredPassword === ADMIN_PASSWORD) {
-      setAllowClose(true);
-      mainWindow.close();
+      // Authenticated: keep the same full-screen dialog window open and morph
+      // it into the admin console (whitelist manager + activity log) instead
+      // of exiting. With shell replacement there is no explorer to exit to.
+      logActivity('escape', 'Admin authenticated');
+      adminAuthenticated = true;
+      if (escapePromptWindow) {
+        escapePromptWindow.loadFile(rendererFile('admin', 'admin.html'));
+      }
     } else {
+      logActivity('escape', 'Incorrect password attempt');
+      closeEscapeWindow();
       dialog.showErrorBox('Incorrect Password', 'The password you entered is incorrect.');
     }
   };
@@ -125,6 +151,8 @@ function stopEscapePipeServer(): void {
 }
 
 app.whenReady().then(() => {
+  logActivity('app-start', 'App started');
+
   // Strip the application menu entirely in kiosk/production builds -- no
   // File/Edit/View menu, no default accelerators (Ctrl+W, Alt+F4 via menu,
   // Ctrl+Shift+I, ...). In dev the menu is kept so DevTools stays reachable
@@ -173,6 +201,46 @@ app.whenReady().then(() => {
     restartComputer,
   });
 
+  // Admin-console IPC (whitelist save, activity log). Every handler is gated
+  // on adminAuthenticated so only a correctly-authenticated escape window can
+  // mutate the whitelist or read history. The window controls above are for
+  // the toolbar/content views and stay ungated (they only affect navigation).
+  ipcMain.handle(IPC.SAVE_WHITELIST, (_event, payload: unknown): SaveResult => {
+    if (!adminAuthenticated) return { ok: false, error: 'Admin authentication required.' };
+    const result = saveWhitelist(payload);
+    if (result.ok) {
+      // Re-load what was actually written (single source of truth) and swap it
+      // into both main's and window.ts's live copies so enforcement updates
+      // immediately without a restart.
+      whitelist = loadWhitelist();
+      updateWhitelist(whitelist);
+      notifyWhitelistRefreshed();
+      logActivity('whitelist-save', `Saved ${whitelist.sites.length} site(s): ${whitelist.sites.map((s) => s.name).join(', ')}`);
+    }
+    return result;
+  });
+
+  ipcMain.handle(IPC.ACTIVITY_GET, (_event, offset: number, limit: number): ActivityPage => {
+    if (!adminAuthenticated) return { total: 0, events: [] };
+    const safeOffset = Math.max(0, Math.trunc(Number(offset)) || 0);
+    const safeLimit = Math.max(1, Math.min(Math.trunc(Number(limit)) || 100, 500));
+    return readActivity(safeOffset, safeLimit);
+  });
+
+  ipcMain.handle(IPC.ACTIVITY_CLEAR, () => {
+    if (!adminAuthenticated) return { ok: false, error: 'Admin authentication required.' };
+    clearActivity();
+    logActivity('escape', 'History cleared by admin');
+    return { ok: true };
+  });
+
+  ipcMain.on(IPC.ADMIN_CLOSE, () => {
+    // Done button: return to the kiosk (LabLock IS the shell in production),
+    // and drop admin privileges so privileged IPC is gated again.
+    adminAuthenticated = false;
+    closeEscapeWindow();
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createMainWindow(whitelist);
@@ -201,6 +269,7 @@ app.on('window-all-closed', () => {
 
 // Clean up the input hook on app quit
 app.on('before-quit', () => {
+  logActivity('app-quit', 'App quit');
   stopInputHook();
   stopEscapePipeServer();
 });
