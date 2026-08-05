@@ -1,8 +1,10 @@
-import { app, BrowserWindow, WebContentsView, screen } from 'electron';
+import { app, BrowserWindow, WebContentsView, screen, dialog } from 'electron';
+import { spawn } from 'child_process';
 import { attachNavigationGuard } from './navigation-guard';
 import { preloadFile, rendererFile, iconFileUrl } from './paths';
 import { isUrlAllowed } from './whitelist';
-import type { WhitelistFile, NavigateResult } from '../shared/types';
+import { IPC } from '../shared/types';
+import type { WhitelistFile, NavigateResult, Pane, UiState } from '../shared/types';
 
 const TOOLBAR_HEIGHT = 44;
 
@@ -36,6 +38,27 @@ export function setAllowClose(value: boolean): void {
 // view instead of reloading and losing state, while switching tiles does a
 // fresh load.
 let currentLoadedUrl: string | null = null;
+
+// Which whitelist entry is conceptually active in the site view. Drives the
+// active-tab highlight in the toolbar. Starts null (home screen).
+let activeSiteUrl: string | null = null;
+
+// App-level session history backing the *universal* Back button. The site
+// view's own webContents history handles in-site and cross-site back; this
+// stack remembers the stable locations (home grid / whitelisted site) the user
+// left, so Back also works from the home grid and the blocked screen, and as a
+// fallback once the site view's history is exhausted.
+type BackTarget = { pane: 'home' } | { pane: 'site'; url: string };
+const backStack: BackTarget[] = [];
+
+// Where the user was before the current blocked screen, so Back can restore it
+// (blocked is a transient overlay, not a stable location of its own).
+let blockedFrom: BackTarget | null = null;
+
+// Which view fills the pane below the toolbar. Driving visibility from a single
+// place avoids races (e.g. did-stop-loading flipping the site view back on top
+// of the home/blocked screen after the user pressed Home mid-load).
+let pane: Pane = 'home';
 
 export function createMainWindow(loadedWhitelist: WhitelistFile): BrowserWindow {
   whitelist = loadedWhitelist;
@@ -152,8 +175,24 @@ export function createMainWindow(loadedWhitelist: WhitelistFile): BrowserWindow 
     if (isMainFrame && pane === 'loading') setPane('site');
   });
 
+  siteView.webContents.on('did-navigate', (_event, url) => {
+    refreshActiveSite(url);
+    pushUiState();
+  });
+
+  // In-page navigations (hash changes, history.pushState, history back) also
+  // affect whether the back button should be enabled.
+  siteView.webContents.on('did-navigate-in-page', (_event, url) => {
+    refreshActiveSite(url);
+    pushUiState();
+  });
+
   layoutViews();
   mainWindow.on('resize', layoutViews);
+
+  // The toolbar never reloads, but push the initial state once it has loaded
+  // so back/tabs/power are correct from the first paint.
+  toolbarView.webContents.on('did-finish-load', pushUiState);
 
   // The BrowserWindow's own root webContents never loads anything (all real
   // content lives in the child WebContentsViews above), so its 'ready-to-show'
@@ -189,20 +228,103 @@ function layoutViews(): void {
   loaderView.setBounds(paneBounds);
 }
 
-// Which view fills the pane below the toolbar. Driving visibility from a single
-// place avoids races (e.g. did-stop-loading flipping the site view back on top
-// of the home/blocked screen after the user pressed Home mid-load).
-type Pane = 'home' | 'blocked' | 'site' | 'loading';
-let pane: Pane = 'home';
-
 function setPane(next: Pane): void {
   pane = next;
   contentView.setVisible(next === 'home' || next === 'blocked');
   siteView.setVisible(next === 'site');
   loaderView.setVisible(next === 'loading');
+  pushUiState();
+}
+
+// Push the current kiosk UI state to the toolbar so it can enable/disable the
+// back button, show/hide the site tabs, highlight the active tab, and decide
+// whether the power buttons are visible.
+function pushUiState(): void {
+  if (toolbarView.webContents.isDestroyed()) return;
+  const state: UiState = {
+    pane,
+    canGoBack: computeCanGoBack(),
+    activeSiteUrl,
+    kiosk: KIOSK,
+  };
+  toolbarView.webContents.send(IPC.UI_STATE, state);
+}
+
+// The Back button is universal: enabled whenever pressing it would do
+// something sensible in the current pane.
+function computeCanGoBack(): boolean {
+  if (pane === 'loading') return false;
+  if (pane === 'blocked') return true; // always restores the previous location
+  if (pane === 'site') {
+    return siteView.webContents.navigationHistory.canGoBack() || backStack.length > 0;
+  }
+  return backStack.length > 0; // home
+}
+
+function currentLocation(): BackTarget {
+  if (pane === 'blocked') return blockedFrom ?? { pane: 'home' };
+  if (pane === 'site') return { pane: 'site', url: currentLoadedUrl ?? '' };
+  return { pane: 'home' };
+}
+
+function sameBackTarget(a: BackTarget | undefined, b: BackTarget): boolean {
+  if (!a) return false;
+  if (a.pane !== b.pane) return false;
+  if (a.pane === 'home') return true;
+  return (a as { url: string }).url === (b as { url: string }).url;
+}
+
+function pushBackIfNew(loc: BackTarget): void {
+  if (!sameBackTarget(backStack[backStack.length - 1], loc)) backStack.push(loc);
+}
+
+// Move to a recorded Back target without pushing it back onto the stack.
+function restoreLocation(target: BackTarget): void {
+  blockedFrom = null;
+  if (target.pane === 'site') {
+    if (currentLoadedUrl === target.url) {
+      // The view is still sitting on that site's page — just show it again.
+      activeSiteUrl = target.url;
+      setPane('site');
+    } else {
+      activeSiteUrl = target.url;
+      currentLoadedUrl = target.url;
+      setPane('loading');
+      siteView.webContents.loadURL(target.url);
+    }
+  } else {
+    activeSiteUrl = null;
+    currentLoadedUrl = null;
+    setPane('home');
+    contentView.webContents.loadFile(rendererFile('home', 'home.html'));
+  }
+}
+
+// Best-match the live navigated URL to a whitelist entry so the toolbar's
+// active-tab highlight follows Back/forward movement across sites. Falls back
+// to the last tile-clicked url when the current page isn't a whitelist home.
+function refreshActiveSite(url: string): void {
+  let host: string;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    return;
+  }
+  for (const site of whitelist.sites) {
+    try {
+      if (new URL(site.url).hostname === host) {
+        activeSiteUrl = site.url;
+        return;
+      }
+    } catch {
+      // skip entries with unparseable urls
+    }
+  }
 }
 
 function showBlocked(attemptedUrl: string): void {
+  blockedFrom = currentLocation();
+  activeSiteUrl = null;
   setPane('blocked');
   contentView.webContents.loadFile(rendererFile('blocked', 'blocked.html'), {
     query: { url: attemptedUrl },
@@ -210,6 +332,11 @@ function showBlocked(attemptedUrl: string): void {
 }
 
 export function goHome(): void {
+  const loc = currentLocation();
+  if (loc.pane === 'site') pushBackIfNew(loc);
+  blockedFrom = null;
+  activeSiteUrl = null;
+  currentLoadedUrl = null;
   setPane('home');
   contentView.webContents.loadFile(rendererFile('home', 'home.html'));
 }
@@ -222,18 +349,92 @@ export function navigateToSite(url: string): NavigateResult {
 
   // Resume an already-loaded site without reloading (preserves in-site state).
   if (currentLoadedUrl === url) {
+    const loc = currentLocation();
+    if (!(loc.pane === 'site' && loc.url === url)) pushBackIfNew(loc);
+    blockedFrom = null;
+    activeSiteUrl = url;
     setPane('site');
     return { ok: true };
   }
 
+  pushBackIfNew(currentLocation());
+  blockedFrom = null;
   currentLoadedUrl = url;
+  activeSiteUrl = url;
 
   // Hide the old site immediately and raise the skeleton so the previous page
-  // never flashes behind the new one. did-stop-loading swaps the site back in.
+  // never flashes behind the new one. did-frame-navigate swaps the site back in.
   setPane('loading');
   siteView.webContents.loadURL(url);
 
   return { ok: true };
+}
+
+// Universal browser-style back. Works from any pane: inside a site it uses the
+// site view's natural session history (so it steps back across sites the user
+// visited); once that's exhausted, or from the home grid / blocked screen, it
+// walks the app-level stack of locations the user left.
+export function goBack(): void {
+  if (pane === 'loading') return;
+
+  if (pane === 'blocked') {
+    restoreLocation(blockedFrom ?? { pane: 'home' });
+    return;
+  }
+
+  if (pane === 'site' && siteView.webContents.navigationHistory.canGoBack()) {
+    siteView.webContents.navigationHistory.goBack();
+    return;
+  }
+
+  while (backStack.length > 0) {
+    const target = backStack.pop()!;
+    if (sameBackTarget(target, currentLocation())) continue; // skip back-to-self
+    restoreLocation(target);
+    return;
+  }
+}
+
+// Kiosk-only power controls. Electron 43's powerMonitor no longer exposes
+// shutdown()/restart(), so drive the OS shutdown via shutdown.exe. The
+// session-end handler in main.ts sets allowClose so the kiosk never blocks the
+// shutdown. The toolbar hides these buttons in dev; gate here too so a stray
+// IPC from a dev window can't power-cycle the machine.
+function confirmPowerAction(action: 'shutdown' | 'restart'): void {
+  if (!KIOSK) return;
+  const win = mainWindow;
+  if (!win) return;
+
+  const isShutdown = action === 'shutdown';
+  dialog
+    .showMessageBox(win, {
+      type: 'question',
+      buttons: [isShutdown ? 'Shut down' : 'Restart', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+      noLink: true,
+      title: isShutdown ? 'Shut down this computer?' : 'Restart this computer?',
+      message: isShutdown ? 'Shut down this computer?' : 'Restart this computer?',
+    })
+    .then(({ response }) => {
+      if (response !== 0) return;
+      spawn('shutdown.exe', [isShutdown ? '/s' : '/r', '/t', '1'], {
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+    })
+    .catch(() => {
+      // Dialog failed to show (rare); do nothing rather than risk an
+      // unexpected power-cycle.
+    });
+}
+
+export function shutdownComputer(): void {
+  confirmPowerAction('shutdown');
+}
+
+export function restartComputer(): void {
+  confirmPowerAction('restart');
 }
 
 export function getWhitelistForRenderer(): WhitelistFile {

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { app, dialog, BrowserWindow, Menu, ipcMain } from 'electron';
 import { loadWhitelist } from './whitelist';
-import { createMainWindow, getWhitelistForRenderer, navigateToSite, goHome, KIOSK, setAllowClose } from './window';
+import { createMainWindow, getWhitelistForRenderer, navigateToSite, goHome, goBack, shutdownComputer, restartComputer, KIOSK, setAllowClose } from './window';
 import { registerIpcHandlers } from './ipc';
 import { startInputHook, stopInputHook } from './input-hook';
 import { preloadFile, rendererFile, watchdogExePath } from './paths';
@@ -168,6 +168,9 @@ app.whenReady().then(() => {
     getWhitelistForRenderer,
     navigateToSite,
     goHome,
+    goBack,
+    shutdownComputer,
+    restartComputer,
   });
 
   app.on('activate', () => {

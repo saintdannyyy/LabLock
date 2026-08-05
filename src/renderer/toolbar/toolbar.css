@@ -23,6 +23,7 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-shrink: 0;
 }
 
 .toolbar-brand-mark {
@@ -45,14 +46,97 @@ body {
   font-weight: 700;
   color: var(--color-text);
   letter-spacing: -0.3px;
+  white-space: nowrap;
 }
 
-/* Home button — GM3 filled pill, centered */
-.toolbar-btn {
+/* Site tabs — shown only while a site is open */
+.site-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-1);
+  max-width: 42%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.site-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.site-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.1px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--duration-short) var(--ease-standard),
+              color var(--duration-short) var(--ease-standard),
+              border-color var(--duration-short) var(--ease-standard);
+}
+
+.site-tab:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.site-tab.is-active {
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+  border-color: rgba(11, 87, 208, 0.24);
+}
+
+.site-tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.site-tab-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.site-tab-letter {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-variant);
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Center group — Back + Home pill */
+.toolbar-center {
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* GM3 filled pill (Home) */
+.toolbar-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -92,20 +176,42 @@ body {
   flex-shrink: 0;
 }
 
-/* Status — neutral lock chip on the right */
-.toolbar-status {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  padding: 5px 12px;
-  border-radius: var(--radius-full);
+/* Back — secondary outlined pill, sits left of Home */
+.toolbar-btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: none;
+  padding: 0 var(--space-4);
+}
+
+.toolbar-btn-secondary:hover {
+  background: var(--color-surface-hover);
+  box-shadow: var(--shadow-1);
+}
+
+.toolbar-btn-secondary:active {
   background: var(--color-surface-variant);
 }
 
-.toolbar-status-icon {
-  color: var(--color-text-secondary);
+.toolbar-btn-secondary:disabled,
+.toolbar-btn-secondary:disabled:hover {
+  background: var(--color-surface);
+  color: var(--color-text-tertiary);
+  border-color: var(--color-border);
+  box-shadow: none;
+  cursor: default;
+}
+
+/* Power buttons — blue pills matching Home, right-aligned */
+.toolbar-power {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.toolbar-btn-power {
+  padding: 0 var(--space-4);
+  font-size: 12.5px;
 }
