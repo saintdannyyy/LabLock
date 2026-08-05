@@ -50,8 +50,8 @@ if (-not (Test-Admin)) {
 
 function Find-AppExe {
     $candidates = @(
-        # NSIS per-user install
-        Join-Path $env:LOCALAPPDATA 'LabLock\LabLock.exe'
+        # NSIS per-user install (default install dir: %LOCALAPPDATA%\Programs\LabLock)
+        Join-Path $env:LOCALAPPDATA 'Programs\LabLock\LabLock.exe'
         # System-wide NSIS install
         Join-Path $env:ProgramFiles 'LabLock\LabLock.exe'
         # Unpacked build output
