@@ -84,6 +84,39 @@ If you skip shell replacement, use startup registration instead
 the app still launches at logon. You always need `disable-taskmgr.ps1`. See
 `installer/README.md` for the full usage and the shell-vs-startup tradeoff.
 
+### Recovering from a failed shell replacement
+
+`enable-shell.ps1` changes a single registry value (`Winlogon\Shell`). If the
+kiosk never comes up and you're stuck at a black screen, you don't need Safe
+Mode — boot into the Windows Recovery Environment and edit the offline hive:
+
+1. Power-cycle 3× (on → wait ~5s → hold power to force off, repeat) until
+   "Preparing Automatic Repair" appears, then **Advanced options →
+   Command Prompt**.
+2. Find the Windows drive (in WinRE it's often *not* `C:`):
+   `dir C:\Windows\System32\config\SOFTWARE` — repeat with `D:`, `E:` until
+   the file is found.
+3. Load the offline registry hive (use the drive found in step 2):
+   ```
+   reg load HKLM\OFFLINE C:\Windows\System32\config\SOFTWARE
+   ```
+4. Restore the shell:
+   ```
+   reg add HKLM\OFFLINE\Microsoft\Windows NT\CurrentVersion\Winlogon /v Shell /t REG_SZ /d explorer.exe /f
+   ```
+5. Unload and reboot:
+   ```
+   reg unload HKLM\OFFLINE
+   exit
+   ```
+
+Note: **Safe Mode is not reliable for this.** In some Windows builds Winlogon
+still honors `Winlogon\Shell` in Safe Mode, so the kiosk simply relaunches and
+it looks like "normal mode". The offline-hive edit above works unconditionally.
+A Windows install USB is an equivalent fallback: boot it → "Repair your
+computer" → Troubleshoot → Command Prompt → run the same commands (SOFTWARE
+will be under `System32\config` on the OS partition).
+
 ## Configuring the whitelist
 
 Edit `config/whitelist.json`:
@@ -148,8 +181,12 @@ Edit `config/whitelist.json`:
 
 One `BrowserWindow` containing three `WebContentsView`s:
 
-- **Toolbar** — fixed strip, always visible, has a Home button. Never
-  destroyed/reloaded.
+- **Toolbar** — fixed 48px strip, always visible, never destroyed/reloaded.
+  Own preload/contextBridge API (`toolbar-preload.ts`): `getWhitelist`,
+  `navigateTo`, `goHome`, `goBack`, `shutdown`, `restart`, plus `onUiState`
+  so main can push the current UI state (`{ pane, canGoBack, activeSiteUrl,
+  kiosk }`). The toolbar renderer is trusted; the site view never gets any of
+  this API.
 - **Content view** — shows the home grid or the "Site not allowed" screen.
   Has a preload/contextBridge API (`getWhitelist`, `navigateTo`, `goHome`).
 - **Site view** — shows the actual whitelisted external site. Has **no**
@@ -168,6 +205,47 @@ tile does a fresh load.
 All whitelist matching logic lives in one place, `src/main/whitelist.ts`,
 imported by every interception point — there's no second copy of the rules
 to drift out of sync.
+
+### Toolbar UI
+
+The toolbar (`src/renderer/toolbar/`) is laid out as: brand ("Halisy
+Lablock") + site tabs on the left, Back + Home pill centered, power buttons
+right.
+
+- **Back** — a *universal* back button, enabled whenever any pane can move
+  back: on a site it drives the natural browser history
+  (`webContents.navigationHistory.goBack()`) so it can step back across the
+  whitelisted sites the user visited; once the view history is exhausted it
+  pops a main-side `backStack` of previously-visited locations; from the
+  blocked screen it restores the page that was up before the blocked
+  navigation; on the home grid with nothing to return to it is disabled.
+  Disabled purely on `state.canGoBack`.
+- **Site tabs** — one pill per whitelisted site, built once at toolbar load
+  from `getWhitelist()`. Visible only while a site (or the loading skeleton)
+  is on screen; hidden on the home grid and blocked screen. The active tab
+  follows the live site URL (matched against `allowedHosts`), so it tracks
+  Back/forward movement across sites. Clicking a tab calls `navigateTo`.
+  Tab icons are the same Google favicon service the home grid uses, with a
+  letter-chip fallback; many sites overflow-scroll horizontally.
+- **Power buttons** — Shutdown/Restart as blue pills (same fill as Home) with
+  text labels, visible **only when `state.kiosk`** (packaged build or
+  `.env`/`LOCKDOWN_KIOSK=1`). Each shows a native confirm dialog before main
+  spawns `shutdown.exe /s|/r /t 1` (Electron 43's `powerMonitor` dropped
+  `shutdown()`/`restart()`). Gated in main too (`confirmPowerAction` returns
+  early unless KIOSK), so a stray IPC can't power-cycle the machine from a dev
+  window.
+
+Main pushes state to the toolbar on every pane change and on site
+`did-navigate` / `did-navigate-in-page`, so Back's enabled state, tab
+visibility, and the active tab are always in sync.
+
+**Dev-mode note:** the repo `.env` (loaded by `import 'dotenv/config'` at the
+top of `main.ts`) sets `LOCKDOWN_KIOSK=1`, so `npm start` runs in kiosk mode
+on this machine by default. To run as a normal dev window instead, launch with
+`LOCKDOWN_KIOSK=0` (non-empty, so dotenv won't override it) or remove that
+line from `.env`. Renderer toolbar script must stay a plain script — an
+`import` would compile to a CommonJS `exports` wrapper that throws in the
+browser context (see comment in `toolbar.ts`).
 
 ## Phase 2 — Window lockdown & startup
 
@@ -234,17 +312,28 @@ Run `npm start`, then walk through:
    blocked screen with no navigation.
 4. **Iframes** — an iframe pointed at a non-whitelisted host inside an
    otherwise-whitelisted page is blocked.
-5. **Toolbar** — Home button works from the home grid, an active site, and
-   the blocked screen; resizing the window keeps the toolbar full-width with
-   no gaps.
-6. **Blocked screen** — shows the attempted host as inert text (try a URL
+5. **Toolbar** — brand shows "Halisy Lablock"; Back is disabled on the home
+   grid when there's nothing to return to, and enabled on any active site and
+   on the blocked screen; on a site it steps back through natural browser
+   history, and once that's exhausted it returns to the last place you were
+   (Home or the previous site); from the blocked screen it restores the page
+   that was up before the block; tabs appear once a site is open (one per
+   whitelisted site) with the active site highlighted, and clicking a tab
+   switches sites; tabs hide again on Home/blocked; Home works from the grid,
+   an active site, and the blocked screen; resizing the window keeps the
+   toolbar full-width with no gaps.
+6. **Power buttons (kiosk run only)** — with `LOCKDOWN_KIOSK=1` (or packaged)
+   Shutdown/Restart appear at the right of the toolbar as blue pills with
+   text labels, and each confirms via dialog before acting; in a plain dev run
+   (`LOCKDOWN_KIOSK=0`) they stay hidden.
+7. **Blocked screen** — shows the attempted host as inert text (try a URL
    with markup-like characters in the path and confirm it renders as plain
    text, not executed); Return Home works.
-7. **Config robustness** — malformed JSON in `whitelist.json` fails loudly
+8. **Config robustness** — malformed JSON in `whitelist.json` fails loudly
    at startup (error dialog + quit), not a silent empty whitelist; a
    malformed wildcard rule (e.g. `"**.com"`) is rejected at load time, not
    treated as match-all; a missing `icon` field falls back gracefully.
-8. **State preservation** — leaving a site via Home and re-clicking the same
+9. **State preservation** — leaving a site via Home and re-clicking the same
    tile resumes the same view; clicking a different tile does a fresh load.
 
 ### Phase 2 — window lockdown & startup
@@ -287,7 +376,9 @@ Run `npm start`, then walk through:
 3. **Shell replacement** — from elevated PowerShell:
    `installer/enable-shell.ps1 -AppExe "<app exe>"` → log off → app launches
    as shell (no explorer, no taskbar, no Start menu).
-   `installer/disable-shell.ps1` (from Safe Mode if needed) → restores explorer.exe.
+   `installer/disable-shell.ps1` (or the WinRE recovery in "Deploying to a lab
+   PC" → "Recovering from a failed shell replacement" if the desktop never
+   comes back) → restores explorer.exe.
    **Test the rollback in a disposable VM first.**
 
 4. **Combined** — enable shell + hook + policy, reboot, verify full lockdown.

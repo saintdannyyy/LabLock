@@ -19,7 +19,10 @@ npm run package:win            # build signed/unsigned Windows installer (releas
 
 ## Architecture (Phase 1)
 One `BrowserWindow` with three `WebContentsView`s:
-- **Toolbar** (fixed 44px strip) — Home button, never reloaded
+- **Toolbar** (fixed 48px strip) — brand, site tabs, Back/Home pills, power
+  buttons; never reloaded. Its own preload (`toolbar-preload.js`) exposes
+  `getWhitelist`, `navigateTo`, `goHome`, `goBack`, `shutdown`, `restart`,
+  `onUiState`
 - **Content view** — home grid / "Site not allowed" screen; has preload (`toolbar-preload.js`) exposing `getWhitelist`, `navigateTo`, `goHome` via contextBridge
 - **Site view** — actual external site; **no preload, zero exposed API**; navigation gated by `will-navigate`, `will-redirect`, `will-frame-navigate`, `setWindowOpenHandler` all delegating to `isUrlAllowed()` in `whitelist.ts`
 
@@ -78,6 +81,8 @@ Per-user registrations follow the user; on lab machines with per-student account
 
 ## Dev environment quirks
 - `ELECTRON_RUN_AS_NODE=1` may be set in shell profiles — must unset before launching GUI: `$env:ELECTRON_RUN_AS_NODE=$null`
+- The repo `.env` (loaded via `import 'dotenv/config'` in `main.ts`) sets `LOCKDOWN_KIOSK=1`, so `npm start` runs **kiosk mode** here by default. For a normal dev window use `LOCKDOWN_KIOSK=0` (non-empty so dotenv won't override) or edit `.env`.
+- Renderer scripts are loaded as plain browser scripts over `file://` — they must NOT use `import`/`export` (tsc would emit a CommonJS `exports` wrapper that throws). Types are declared structurally (see `toolbar.ts`).
 - Electron on this machine needs: `--disable-gpu --disable-gpu-shader-disk-cache --user-data-dir=<writable>`
 - TypeScript compiles to `dist/`; renderer assets copied by `scripts/copy-assets.js`
 
