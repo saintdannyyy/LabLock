@@ -2,14 +2,17 @@
 
 /* Toolbar — clean white strip. Height is 100% of the toolbar view: the view is
    48px tall normally, but the main process grows it to the full window while
-   the control panel is open so the dropdown + scrim can render below the strip. */
+   the control panel is open so the dropdown can render below the strip. The
+   page background is transparent (the view itself too, see window.ts), so the
+   home view shows through below the strip — a macOS-style floating panel, no
+   overlay. */
 html, body {
   overflow: hidden;
   height: 100%;
-  background: var(--color-surface);
+  background: transparent;
 }
 
-/* `hidden` must always win over the panel/scrim positioning rules below. */
+/* `hidden` must always win over the panel positioning rules below. */
 [hidden] {
   display: none !important;
 }
@@ -17,14 +20,14 @@ html, body {
 body {
   position: relative;
   height: 100%;
-  background: var(--color-surface);
+  background: transparent;
   user-select: none;
 }
 
 /* The strip is a fixed-height row pinned to the top of the view. The main
    process grows the toolbar view to the full window while the control panel is
    open; this wrapper keeps the toolbar UI in place instead of re-centering
-   vertically, with the dropdown + scrim rendering below it. */
+   vertically, with the dropdown rendering below it. */
 .toolbar-strip {
   position: relative;
   display: flex;
@@ -248,8 +251,13 @@ body {
 }
 
 .status-chip:hover {
-  background: var(--color-surface-hover);
+  background: #e8eaed;
   color: var(--color-text);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+.status-chip:active {
+  background: #dfe1e5;
 }
 
 .status-chip.is-warn { color: var(--color-error); }
@@ -315,18 +323,9 @@ body {
   height: 5px;
 }
 
-/* Scrim — covers everything below the strip while the panel is open, so the
-   dropdown is modal (clicking outside closes it) like a macOS menu-bar popover. */
-.status-scrim {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 48px;
-  bottom: 0;
-  background: rgba(15, 23, 42, 0.35);
-  z-index: 40;
-}
-
+/* Floating panel — a macOS menu-bar-style popover. The view + page background
+   below the strip are transparent, so this card simply floats over the home
+   view; clicking outside it (or pressing Escape) dismisses it. */
 .status-panel {
   position: absolute;
   top: 52px;

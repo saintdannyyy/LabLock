@@ -7,7 +7,9 @@ import { appendActivity } from './history';
 import { IPC } from '../shared/types';
 import type { WhitelistFile, NavigateResult, Pane, UiState, ActivityEvent } from '../shared/types';
 
-const TOOLBAR_HEIGHT = 44;
+// Height of the toolbar strip (matches .toolbar-strip in toolbar.css). The
+// content/site/loading views sit below this line.
+const TOOLBAR_HEIGHT = 48;
 
 // Phase 2 lockdown mode. Active in any packaged (production) build, and
 // additionally forceable in dev via LOCKDOWN_KIOSK=1 so the real locked
@@ -31,9 +33,9 @@ let allowClose = false;
 
 // Control panel open state. The toolbar page only drops its dropdown below the
 // 48px strip if its WebContentsView covers the whole window, so the view is
-// resized to full height while the panel is open (the panel's scrim then
-// swallows clicks on the area below the strip) and back to the 48px strip when
-// it closes.
+// resized to full height while the panel is open and back to the 48px strip
+// when it closes. The toolbar view + page background are transparent, so the
+// home view below the strip stays visible (macOS-style floating panel).
 let panelOpen = false;
 
 export function setPanelOpen(open: boolean): void {
@@ -168,6 +170,10 @@ export function createMainWindow(loadedWhitelist: WhitelistFile): BrowserWindow 
     },
   });
 
+  // Transparent background so the grown (panel-open) view only paints the
+  // strip and the floating dropdown — the home view shows through below.
+  toolbarView.setBackgroundColor('#00000000');
+
   contentView = new WebContentsView({
     webPreferences: {
       preload: preloadFile('content-preload.js'),
@@ -201,10 +207,15 @@ export function createMainWindow(loadedWhitelist: WhitelistFile): BrowserWindow 
     },
   });
 
-  mainWindow.contentView.addChildView(toolbarView);
+  // Children stack in addition order — LAST added is topmost. The toolbar view
+  // must be on top: when the control panel opens it grows to the full window so
+  // its dropdown renders over the content below the strip (if it sat below the
+  // content view, the grown toolbar would be hidden behind it and the panel
+  // would be invisible). The loadView overlay stays above the site view.
   mainWindow.contentView.addChildView(contentView);
   mainWindow.contentView.addChildView(siteView);
   mainWindow.contentView.addChildView(loaderView);
+  mainWindow.contentView.addChildView(toolbarView);
 
   if (KIOSK) {
     // Pin the window to the primary display explicitly. kiosk: true normally
@@ -287,9 +298,9 @@ export function createMainWindow(loadedWhitelist: WhitelistFile): BrowserWindow 
 function layoutViews(): void {
   if (!mainWindow) return;
   const [width, height] = mainWindow.getContentSize();
-  // The toolbar view grows to cover the whole window while the control panel
-  // is open so its dropdown + scrim can render (and intercept clicks) below
-  // the 48px strip.
+  // The toolbar view grows to cover the whole window while the control panel is
+  // open so its dropdown can render (and intercept clicks) below the 48px
+  // strip; the transparent view background keeps the home view visible.
   const toolbarHeight = panelOpen ? height : TOOLBAR_HEIGHT;
   toolbarView.setBounds({ x: 0, y: 0, width, height: toolbarHeight });
   const paneBounds = { x: 0, y: TOOLBAR_HEIGHT, width, height: Math.max(height - TOOLBAR_HEIGHT, 0) };

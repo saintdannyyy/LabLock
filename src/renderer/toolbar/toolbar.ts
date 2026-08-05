@@ -30,7 +30,6 @@ const backBtn = document.getElementById('back-btn') as HTMLButtonElement | null;
 const tabsEl = document.getElementById('site-tabs') as HTMLElement | null;
 
 const clusterEl = document.getElementById('status-cluster') as HTMLElement | null;
-const scrimEl = document.getElementById('status-scrim') as HTMLElement | null;
 const panelEl = document.getElementById('status-panel') as HTMLElement | null;
 const networkChip = document.getElementById('status-network') as HTMLButtonElement | null;
 const networkIcon = document.getElementById('status-network-icon') as HTMLElement | null;
@@ -101,14 +100,14 @@ function tickClock(): void {
 
 /* ---------------------------------------------------------------------------
    Control panel open/close. Opening grows the toolbar WebContentsView to the
-   full window (via PANEL_RESIZE) so the dropdown + scrim can render below the
-   48px strip; closing shrinks it back.
+   full window (via PANEL_RESIZE) so the dropdown can render below the 48px
+   strip; the view + page are transparent there, so the panel floats over the
+   home view with no overlay. Closing shrinks it back.
    --------------------------------------------------------------------------- */
 let panelOpen = false;
 
 function setPanelHidden(hidden: boolean): void {
   if (panelEl) panelEl.hidden = hidden;
-  if (scrimEl) scrimEl.hidden = hidden;
 }
 
 function openPanel(): void {
@@ -131,7 +130,18 @@ clusterEl?.addEventListener('click', () => {
   if (panelOpen) closePanel();
   else openPanel();
 });
-scrimEl?.addEventListener('click', closePanel);
+
+// macOS-style dismiss: a click anywhere outside the cluster and the panel
+// closes it (the grown toolbar view owns the whole window, so clicks below the
+// strip land here instead of on the home view).
+document.addEventListener('click', (e) => {
+  if (!panelOpen) return;
+  const target = e.target as Node;
+  if (panelEl && panelEl.contains(target)) return;
+  if (clusterEl && clusterEl.contains(target)) return;
+  closePanel();
+});
+
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closePanel();
 });

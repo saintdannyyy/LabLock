@@ -290,8 +290,11 @@ panel status cluster on the right (Wi-Fi icon, battery, clock).
     late binding can't call IUnknown-only vtable methods.
   - **View resize**: the toolbar WebContentsView grows to the full window while
     the panel is open (via `IPC.PANEL_RESIZE` → `setPanelOpen` in
-    `src/main/window.ts`) so the dropdown + scrim can render and swallow clicks
-    below the 48px strip; it shrinks back to 48px on close.
+    `src/main/window.ts`) so the dropdown can render and swallow clicks below
+    the 48px strip; it shrinks back to 48px on close. The view + page
+    background are transparent, so the home view shows through below the strip
+    — a macOS-style floating panel with no dimming overlay. Clicking outside
+    the panel (or pressing Escape) dismisses it.
 
 Main pushes state to the toolbar on every pane change and on site
 `did-navigate` / `did-navigate-in-page`, so Back's enabled state, tab
