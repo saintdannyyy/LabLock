@@ -38,6 +38,9 @@
       "icon": "build/icon.ico",
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
+    "nsis": {
+      "installDir": "LabLock"
+    },
     "asar": true
   },
   "dependencies": {

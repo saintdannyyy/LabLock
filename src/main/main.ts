@@ -12,6 +12,13 @@ import { createServer } from 'net';
 import { spawn } from 'child_process';
 import type { WhitelistFile, SaveResult, ActivityPage, ActivityEvent, VolumeRequest } from '../shared/types';
 
+// electron-builder strips `productName` from the packaged package.json inside
+// app.asar, leaving only the lowercase npm `name` ("lab-lock"). Electron uses
+// that name for the per-user data folder, so without this the installed app
+// writes to %APPDATA%\lab-lock instead of %APPDATA%\LabLock. Pin the branded
+// name early so app.getPath('userData') (activity log, session data) uses it.
+app.setName('LabLock');
+
 const ESCAPE_PIPE_NAME = 'lockdown-escape';
 const ADMIN_PASSWORD = process.env.LOCKDOWN_ADMIN_PASSWORD || 'admin123'; // default for dev; override in production
 
