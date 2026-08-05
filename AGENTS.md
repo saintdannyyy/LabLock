@@ -5,7 +5,7 @@ Hand-built kiosk browser for school lab PCs (Win10/11 Pro/Home, no Enterprise li
 - Phase 1: core browser + whitelist enforcement (done)
 - Phase 2: window lockdown + startup registration (done)
 - Phase 3: shell replacement + global keyboard hook + DisableTaskMgr (done)
-- Phase 4: admin escape hatch + watchdog (done)
+- Phase 4: admin escape hatch + admin console (whitelist manager + activity log) + watchdog (done)
 
 ## Essential commands
 ```
@@ -30,13 +30,16 @@ Single source of truth for whitelist logic: `src/main/whitelist.ts:129` (`isUrlA
 
 ## Key files
 ```
-src/main/main.ts          # app entry, window creation, session-end handler, escape hatch + watchdog
-src/main/window.ts        # KIOSK flag, window config, close prevention, view layout
-src/main/whitelist.ts     # load/validate config/whitelist.json; isUrlAllowed()
+src/main/main.ts          # app entry, window creation, session-end handler, escape hatch + admin gate + watchdog
+src/main/window.ts        # KIOSK flag, window config, close prevention, view layout, activity logging hooks
+src/main/whitelist.ts     # load/validate config/whitelist.json; isUrlAllowed(); atomic saveWhitelist()
+src/main/history.ts       # append-only JSONL activity log at <userData>/history.jsonl
 src/main/navigation-guard.ts # attaches all navigation interceptors to site view
 src/main/ipc.ts           # ipcMain handlers (GET_WHITELIST, NAVIGATE_TO, GO_HOME)
 src/main/paths.ts         # runtime path resolution (dev vs packaged)
 src/main/input-hook.ts    # spawns InputHook.exe, returns PID for watchdog
+src/preload/escape-preload.ts # sandboxed preload for escape dialog + admin console (escapeAPI + adminAPI)
+src/renderer/admin/       # admin console (Sites + Activity tabs), loaded by morphing the escape window
 src/shared/types.ts       # shared types + IPC channel constants
 config/whitelist.json     # site list (name, url, icon?, allowedHosts?)
 scripts/copy-assets.js    # copies renderer HTML/CSS to dist/ at build
@@ -62,7 +65,10 @@ bin/watchdog/Watchdog.exe       # committed binary (extraResources)
 - **DisableTaskMgr**: `installer/disable-taskmgr.ps1` / `enable-taskmgr.ps1` set HKLM `DisableTaskMgr=1` (HKCU Policies ACL protected on Win11).
 
 ## Phase 4 additions
-- **Admin escape hatch**: `Ctrl+Alt+Shift+F12` → InputHook signals via named pipe → main process shows password dialog → correct password → `setAllowClose(true)` + `window.close()`. Password via `LOCKDOWN_ADMIN_PASSWORD` env (default `admin123`).
+- **Admin escape hatch + admin console**: `Ctrl+Alt+Shift+F12` → InputHook signals via named pipe → main process shows a password dialog → correct password morphs that same full-screen window into the **admin console** (never quits the app — LabLock is the shell). Two tabs:
+  - **Sites**: whitelist manager — add/edit/remove sites; `saveWhitelist()` validates + atomic-writes `config/whitelist.json`, then re-`loadWhitelist()`, `updateWhitelist()`, and `notifyWhitelistRefreshed()` so the running kiosk applies changes **live** (no restart).
+  - **Activity**: append-only JSONL log (`<userData>/history.jsonl`, sync appends, fire-and-forget) — navigation, blocked attempts, home/back, power, escape/auth, whitelist saves, app start/quit; paged newest-first, searchable, admin-clearable.
+  - **Auth gating**: `adminAuthenticated` flag set only on correct password; `SAVE_WHITELIST`/`ACTIVITY_GET`/`ACTIVITY_CLEAR` refuse without it; flag drops on console close/"Done" (`ADMIN_CLOSE`) and window `closed`. Password via `LOCKDOWN_ADMIN_PASSWORD` env (default `admin123`).
 - **Watchdog** (`Watchdog.exe`): spawned with `--electron-pid --hook-pid --app-exe`. Polls both PIDs; restarts app exe on unexpected exit; clean shutdown (exit code 0) = no restart.
 
 ## Startup registration (Phase 2)

@@ -29,9 +29,23 @@ Where things stand now:
 - **Task Manager policy** scripts (`installer/disable-taskmgr.ps1` /
   `enable-taskmgr.ps1`) set `DisableTaskMgr=1` at HKLM (machine-wide, requires
   admin; HKCU Policies ACL is protected on Win11).
-- **Admin escape hatch**: `Ctrl+Alt+Shift+F12` triggers a password prompt.
-  Correct password → `setAllowClose(true)` + graceful exit. Default password
-  `admin123` (override via `LOCKDOWN_ADMIN_PASSWORD` env var).
+- **Admin console** (reached via the escape hatch): `Ctrl+Alt+Shift+F12`
+  opens a password prompt (default `admin123`, override via
+  `LOCKDOWN_ADMIN_PASSWORD`). A correct password morphs the full-screen dialog
+  into the admin console with two tabs:
+  - **Sites** — whitelist manager: add/edit/remove sites (name, URL,
+    allowedHosts). Saves atomically to `config/whitelist.json` and applies
+    **live** to the running kiosk (toolbar tabs rebuild, enforcement updates)
+    with no restart.
+  - **Activity** — history viewer: append-only JSONL log of every user
+    movement (navigation, blocked attempts, home/back, power, escape/auth
+    events, whitelist saves, app lifecycle) at `<userData>/history.jsonl`
+    (dev: the `--user-data-dir`; packaged: `%APPDATA%/LabLock/`). Paged
+    newest-first, searchable by kind/text, cleared only by an admin.
+  "Done" closes the console and returns to the kiosk — LabLock is the shell,
+  so the app **never quits** from the console. Privileged IPC (whitelist
+  save, history read/clear) is password-gated in the main process and refused
+  on the unauthenticated password page.
 - **Watchdog** (C# `bin/watchdog/Watchdog.exe`): monitors Electron + InputHook
   PIDs; restarts Electron on unexpected exit; respects clean shutdown (exit 0).
 - This is a **complete lockdown posture** for lab deployment. Remaining
@@ -264,8 +278,9 @@ In kiosk mode:
 - `webPreferences.devTools: false` disables DevTools on every WebContents
   (toolbar, content, and the untrusted site view).
 - The window's `close` event is swallowed (`event.preventDefault()`) unless
-  `setAllowClose(true)` was called. Today the only caller is the Windows
-  session-end handler; the Phase 4 admin escape hatch will be the other.
+  `setAllowClose(true)` was called. The only caller is the Windows session-end
+  handler — the admin escape hatch no longer closes the window at all (the
+  password dialog morphs into the admin console instead).
 
 **Shutdown/logoff is never blocked.** On Windows, `app`'s `query-session-end`
 event fires before the window closes during shutdown/logoff; the app calls
@@ -274,10 +289,11 @@ trying to shut down. (Note: electron.d.ts v43 doesn't type these events on
 `app`, so the handler is registered via a cast — see the comment in
 `src/main/main.ts`.)
 
-**Escape-hatch caveat until Phase 4:** in a kiosk window there is currently no
-supported way to exit to a desktop — killing the process is the only exit.
-`LOCKDOWN_KIOSK=1` testing is safe in dev because killing the launching
-process still works; don't leave a lab machine sitting in that state.
+**Testing caveat:** in a kiosk window there is no supported way to exit to a
+desktop — the escape hatch opens the admin console and "Done" returns to the
+kiosk, so killing the process is the only exit. `LOCKDOWN_KIOSK=1` testing is
+safe in dev because killing the launching process still works; don't leave a
+lab machine sitting in that state.
 
 ### Launch at startup
 
@@ -384,24 +400,41 @@ Run `npm start`, then walk through:
 4. **Combined** — enable shell + hook + policy, reboot, verify full lockdown.
     Exit = Ctrl+Alt+Del → Sign out (only escape until Phase 4).
 
-### Phase 4 — admin escape hatch + watchdog
+### Phase 4 — admin escape hatch + admin console + watchdog
 
-1. **Escape hatch** — launch kiosk (`LOCKDOWN_KIOSK=1` or packaged):
-   - Press `Ctrl+Alt+Shift+F12` → password dialog appears.
-   - Enter correct password (`LOCKDOWN_ADMIN_PASSWORD` or default `admin123`)
-     → app exits gracefully.
+1. **Escape hatch / admin console** — launch kiosk (`LOCKDOWN_KIOSK=1` or
+   packaged):
+   - Press `Ctrl+Alt+Shift+F12` → password dialog appears over the kiosk.
+   - Enter the correct password (`LOCKDOWN_ADMIN_PASSWORD` or default
+     `admin123`) → the dialog morphs into the full-screen admin console (the
+     app stays running).
    - Wrong password → error dialog, kiosk stays locked.
    - Cancel button → dialog closes, kiosk stays locked.
 
-2. **Watchdog** — launch kiosk, verify three processes run:
+2. **Sites tab** — add a site, save, confirm `config/whitelist.json` is
+   rewritten atomically and the toolbar/home tabs rebuild **without a restart**
+   (live apply). Edit and remove a site the same way; verify enforcement
+   updates immediately (a site removed is blocked on next navigation).
+
+3. **Activity tab** — confirm events appear for navigation, blocked attempts,
+   home/back, escape/auth, whitelist saves, and app start/quit; newest-first
+   with paging and search; "Clear history" wipes the log.
+
+4. **Auth gating** — on the unauthenticated password page, a direct
+   `window.adminAPI.saveWhitelist(...)`/`getActivity(...)` call is refused
+   (`{ok:false, ...}` / empty page). After authenticating, the same calls
+   succeed. Pressing **Done** closes the console back to the kiosk and drops
+   auth so the gate is closed again.
+
+5. **Watchdog** — launch kiosk, verify three processes run:
    - Electron (main app)
    - InputHook.exe (keyboard hook)
    - Watchdog.exe (monitor)
    - Kill InputHook.exe → Watchdog restarts Electron (new PIDs for all three).
    - Kill Electron → Watchdog restarts it.
-   - Admin escape hatch → clean exit (code 0), Watchdog does NOT restart.
+   - A clean exit (code 0) → Watchdog does NOT restart.
 
-3. **Env override** — `LOCKDOWN_ADMIN_PASSWORD=mysecret npm start` (with
+6. **Env override** — `LOCKDOWN_ADMIN_PASSWORD=mysecret npm start` (with
    `LOCKDOWN_KIOSK=1`) → escape hatch accepts `mysecret`.
 
 ## Windows version notes
