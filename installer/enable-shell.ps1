@@ -30,12 +30,12 @@
     .\enable-shell.ps1
 #>
 
-$ErrorActionPreference = 'Stop'
-
 param(
     [Parameter(Mandatory=$false)]
     [string]$AppExe
 )
+
+$ErrorActionPreference = 'Stop'
 
 function Test-Admin {
     $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
@@ -104,7 +104,7 @@ Write-Host "Backed up current shell ($currentShell) to $backupFile"
 # 3. Set new shell (quoted in case path has spaces)
 $newShell = "`"$AppExe`""
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name 'Shell' -Value "`"$AppExe`"" -Force
-Write-Host "Set Winlogon\Shell to `$AppExe`"
+Write-Host "Set Winlogon\Shell to $AppExe"
 
 Write-Host ''
 Write-Host 'Shell replacement complete.'
