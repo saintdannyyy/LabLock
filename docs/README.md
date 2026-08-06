@@ -175,6 +175,14 @@ Edit `config/whitelist.json`:
 
 ### Matching rules (read this before whitelisting a real site)
 
+- Every rule in `allowedHosts` / `embedHosts` must be a **bare hostname**,
+  optionally `*.`-wildcarded. Do not put a URL or path in a rule —
+  `"https://web.toddleapp.com"` and `"j100coders.org/coder"` are invalid.
+  A path-scoped rule can never match a hostname, so it silently blocks every
+  page of that site. The admin console and config loader reject such rules at
+  save/load time, and once a host is allowed, the user can roam freely across
+  all its pages (any path, any subdomain covered by the rules).
+
 - `"example.com"` (no `*`) matches **only** `example.com` exactly — not
   `www.example.com`, not any subdomain.
 - `"*.example.com"` matches subdomains **only** (`accounts.example.com`,
