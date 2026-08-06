@@ -4,6 +4,7 @@
   "description": "LabLock — Locked-down kiosk browser for school computer labs",
   "main": "dist/main/main.js",
   "private": true,
+  "author": "Saintdannyyy",
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/copy-assets.js",
     "start": "npm run build && electron .",
@@ -28,18 +29,27 @@
       "package.json"
     ],
     "extraResources": [
-      { "from": "config", "to": "config" },
-      { "from": "assets", "to": "assets" },
-      { "from": "bin/inputhook", "to": "bin/inputhook" },
-      { "from": "bin/watchdog", "to": "bin/watchdog" }
+      {
+        "from": "config",
+        "to": "config"
+      },
+      {
+        "from": "assets",
+        "to": "assets"
+      },
+      {
+        "from": "bin/inputhook",
+        "to": "bin/inputhook"
+      },
+      {
+        "from": "bin/watchdog",
+        "to": "bin/watchdog"
+      }
     ],
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico",
       "artifactName": "${productName}-Setup-${version}.${ext}"
-    },
-    "nsis": {
-      "installDir": "LabLock"
     },
     "asar": true
   },
