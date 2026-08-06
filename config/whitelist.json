@@ -2,7 +2,7 @@
   "sites": [
     {
       "name": "J100 Coders",
-      "url": "https://j100coders.org",
+      "url": "https://j100coders.org/coder",
       "icon": "j100.png",
       "allowedHosts": [
         "j100coders.org",
@@ -21,7 +21,7 @@
       "name": "Toddle",
       "url": "https://web.toddleapp.com",
       "allowedHosts": [
-        "https://web.toddleapp.com",
+        "web.toddleapp.com",
         "*.toddleapp.com"
       ]
     }
