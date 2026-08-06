@@ -70,8 +70,8 @@
         <input type="text" id="edit-url" autocomplete="off" spellcheck="false" placeholder="https://example.org">
       </div>
       <div class="modal-field">
-        <label for="edit-hosts">Allowed hosts <span class="field-hint">(one per line — the main site is always allowed)</span></label>
-        <textarea id="edit-hosts" rows="3" spellcheck="false" placeholder="*.example.org&#10;example.com"></textarea>
+        <label for="edit-hosts">Allowed hosts <span class="field-hint">(bare hostnames only — no URLs or paths, one per line; the main site is always allowed)</span></label>
+        <textarea id="edit-hosts" rows="3" spellcheck="false" placeholder="example.com&#10;*.example.com"></textarea>
       </div>
       <div class="modal-field">
         <label for="edit-embed-hosts">Embed-only hosts <span class="field-hint">(one per line — allowed inside iframes, never browseable as a page)</span></label>
