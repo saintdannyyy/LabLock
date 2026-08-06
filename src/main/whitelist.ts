@@ -142,6 +142,12 @@ function validateEntry(entry: unknown, index: number): WhitelistEntry {
  */
 function isValidHostRule(rule: string): boolean {
   if (rule.trim() === '') return false;
+  // A rule must be a bare hostname, optionally "*."-wildcarded. Anything that
+  // carries a scheme, port, path, query, or whitespace -- e.g.
+  // "https://web.toddleapp.com" or "j100coders.org/coder" -- can never match a
+  // hostname, so it would silently break every navigation to that site. Reject
+  // it outright instead of storing a rule that always fails to match.
+  if (/[/:?#\s]/.test(rule)) return false;
   if (rule.startsWith('*.')) {
     const base = rule.slice(2);
     return base !== '' && !base.includes('*') && !base.startsWith('.');
