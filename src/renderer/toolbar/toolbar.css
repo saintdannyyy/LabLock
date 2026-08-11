@@ -279,6 +279,41 @@ body {
   font-size: 11.5px;
 }
 
+/* Active-profile avatar chip (opens the profile picker) */
+.profile-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--duration-short) var(--ease-standard);
+}
+
+.profile-chip:hover {
+  background: #e8eaed;
+}
+
+.profile-chip:active {
+  background: #dfe1e5;
+}
+
+.profile-chip-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  user-select: none;
+}
+
 /* Battery glyph (CSS-drawn so the fill can track percent) */
 .battery-glyph {
   position: relative;
@@ -323,9 +358,69 @@ body {
   height: 5px;
 }
 
+/* ==========================================================================
+   Screen-time limit banner. The toolbar view grows to 48 + 56px while it is
+   visible (see BANNER_HEIGHT in window.ts), so this absolute row sits right
+   below the strip; the page background is transparent there, so only the
+   banner paints over the home/site view.
+   ========================================================================== */
+.screen-time-banner {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  right: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  background: var(--color-error);
+  color: #ffffff;
+  z-index: 40;
+  box-shadow: var(--shadow-2);
+  user-select: none;
+}
+
+.screen-time-banner-text {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.1px;
+}
+
+.screen-time-countdown {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.screen-time-extend-btn {
+  height: 30px;
+  padding: 0 var(--space-4);
+  border: none;
+  border-radius: var(--radius-full);
+  background: #ffffff;
+  color: var(--color-error);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--duration-short) var(--ease-standard);
+}
+
+.screen-time-extend-btn:hover {
+  filter: brightness(0.94);
+}
+
+.screen-time-extend-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
 /* Floating panel — a macOS menu-bar-style popover. The view + page background
    below the strip are transparent, so this card simply floats over the home
-   view; clicking outside it (or pressing Escape) dismisses it. */
+   view; clicking outside it (or pressing Escape) dismisses it. While the
+   screen-time limit banner is up it drops below the banner so the Extend
+   button stays clickable. */
 .status-panel {
   position: absolute;
   top: 52px;
@@ -338,6 +433,10 @@ body {
   padding: var(--space-3) 0;
   z-index: 50;
   user-select: none;
+}
+
+.screen-time-banner-visible .status-panel {
+  top: 108px;
 }
 
 .status-panel-header {
@@ -398,6 +497,11 @@ body {
   white-space: nowrap;
 }
 
+.status-row-value.is-warn {
+  color: var(--color-error);
+  font-weight: 700;
+}
+
 .status-panel-divider {
   height: 1px;
   background: var(--color-border);
@@ -440,6 +544,270 @@ body {
   cursor: pointer;
 }
 
+/* Appearance (theme) row — segmented light/dark toggle */
+.theme-row {
+  cursor: default;
+}
+
+.theme-switch {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  gap: 2px;
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+.theme-option {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background var(--duration-short) var(--ease-standard),
+              color var(--duration-short) var(--ease-standard);
+}
+
+.theme-option.is-active {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* Wi-Fi panel (Phase 5) — its own floating card, opened by clicking the network
+   chip in the status cluster. */
+.wifi-panel-popup {
+  position: absolute;
+  top: 52px;
+  right: 12px;
+  width: 320px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+  padding: var(--space-3) 0;
+  z-index: 50;
+  user-select: none;
+}
+
+.screen-time-banner-visible .wifi-panel-popup {
+  top: 108px;
+}
+
+.wifi-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-4);
+  margin-bottom: var(--space-1);
+}
+
+.wifi-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.wifi-panel-title-icon {
+  color: var(--color-text-secondary);
+}
+
+.wifi-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-short) var(--ease-standard),
+              color var(--duration-short) var(--ease-standard);
+}
+
+.wifi-refresh:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.wifi-refresh:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.wifi-state {
+  font-size: 11.5px;
+  color: var(--color-text-tertiary);
+  padding: 0 var(--space-4);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Failures wrap and use the error colour instead of ellipsis-clipping, so the
+   full netsh message is never cut off. */
+.wifi-state.is-error {
+  white-space: normal;
+  word-break: break-word;
+  color: var(--color-error);
+  line-height: 1.35;
+}
+
+.wifi-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--space-2);
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wifi-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: var(--radius-md);
+  min-height: 34px;
+}
+
+.wifi-item:hover {
+  background: var(--color-surface-hover);
+}
+
+.wifi-item-bars {
+  flex: 0 0 auto;
+}
+
+.wifi-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+
+.wifi-bar {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--color-border-strong);
+}
+
+.wifi-bar:nth-child(1) { height: 4px; }
+.wifi-bar:nth-child(2) { height: 7px; }
+.wifi-bar:nth-child(3) { height: 9px; }
+.wifi-bar:nth-child(4) { height: 12px; }
+
+.wifi-bar.is-on {
+  background: var(--color-primary);
+}
+
+.wifi-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wifi-item-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wifi-item-meta {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+.wifi-item-badge {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #1e8e3e;
+}
+
+.wifi-item-btn {
+  flex: 0 0 auto;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-short) var(--ease-standard),
+              color var(--duration-short) var(--ease-standard);
+}
+
+.wifi-item-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.wifi-item-btn-primary {
+  border-color: transparent;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.wifi-item-btn-primary:hover {
+  background: var(--color-primary-hover);
+  color: var(--color-on-primary);
+}
+
+.wifi-connect-form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 0 100%;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px;
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.wifi-connect-form input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.wifi-connect-form input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
 /* Power controls (kiosk only) */
 .status-panel-power {
   display: flex;
@@ -476,3 +844,37 @@ body {
   color: var(--color-primary);
   border: 1px solid var(--color-border-strong);
 }
+
+/* ==========================================================================
+   Dark theme refinements for hardcoded colors (shared.css swaps the tokens;
+   these rules fix the few literal hex values left in this file).
+   ========================================================================== */
+:root[data-theme='dark'] .status-chip:hover,
+:root[data-theme='dark'] .profile-chip:hover {
+  background: var(--color-surface-hover);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+:root[data-theme='dark'] .status-chip:active,
+:root[data-theme='dark'] .profile-chip:active {
+  background: var(--color-surface-hover);
+}
+
+:root[data-theme='dark'] .status-chip.is-charging,
+:root[data-theme='dark'] .wifi-item-badge {
+  color: #81c995;
+}
+
+/* Error surfaces: swap the light error pink for a darker red that still reads
+   as danger under the white banner text / power button text. */
+:root[data-theme='dark'] .screen-time-banner,
+:root[data-theme='dark'] .panel-power-btn {
+  background: #8c1d18;
+  color: #ffffff;
+}
+
+:root[data-theme='dark'] .screen-time-extend-btn {
+  background: #ffffff;
+  color: #8c1d18;
+}
+

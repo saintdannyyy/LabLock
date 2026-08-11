@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; img-src 'self' file: https:;" />
-  <title>Halisy Lablock</title>
+  <title>HALISY WORKStudio</title>
   <link rel="stylesheet" href="toolbar.css" />
 </head>
 <body>
   <div class="toolbar-strip">
-    <div class="toolbar-brand" aria-hidden="true">
+    <div class="toolbar-brand">
       <img class="toolbar-brand-mark" src="halisy.png" alt="" draggable="false" />
-      <span class="toolbar-brand-name">Halisy Lablock</span>
+      <span class="toolbar-brand-name">HALISY WORKStudio</span>
     </div>
 
     <nav id="site-tabs" class="site-tabs" aria-label="Allowed sites" hidden></nav>
@@ -34,6 +34,9 @@
     </div>
 
     <div id="status-cluster" class="toolbar-status" role="group" aria-label="System status">
+      <button id="profile-chip" type="button" class="profile-chip" aria-label="Switch profile" title="Switch profile" hidden>
+        <span id="profile-chip-avatar" class="profile-chip-avatar"></span>
+      </button>
       <button id="status-network" type="button" class="status-chip" aria-label="Network status" title="Network status">
         <span class="status-chip-icon" id="status-network-icon"></span>
       </button>
@@ -46,6 +49,14 @@
         <span id="status-clock-date" class="status-chip-date"></span>
       </button>
     </div>
+  </div>
+
+  <div id="screen-time-banner" class="screen-time-banner" role="alert" hidden>
+    <span class="screen-time-banner-text">
+      Screen time limit reached — this workspace shuts down in
+      <strong id="screen-time-countdown" class="screen-time-countdown">--:--</strong>.
+    </span>
+    <button id="screen-time-extend" type="button" class="screen-time-extend-btn">Extend time</button>
   </div>
 
   <div id="status-panel" class="status-panel" hidden role="dialog" aria-label="Control panel">
@@ -86,8 +97,22 @@
       <span class="status-row-value" id="panel-version">—</span>
     </div>
     <div class="status-row">
-      <span class="status-row-label">Uptime</span>
-      <span class="status-row-value" id="panel-uptime">—</span>
+      <span class="status-row-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="13" r="8"></circle>
+          <path d="M12 9v4l2.5 2.5"></path>
+          <path d="M9 2h6"></path>
+        </svg>
+      </span>
+      <span class="status-row-label">Screen time</span>
+      <span class="status-row-value" id="panel-screen-time">—</span>
+    </div>
+    <div class="status-row theme-row">
+      <span class="status-row-label">Appearance</span>
+      <div class="theme-switch" role="group" aria-label="Appearance">
+        <button id="theme-light" type="button" class="theme-option is-active" aria-pressed="true">Light</button>
+        <button id="theme-dark" type="button" class="theme-option" aria-pressed="false">Dark</button>
+      </div>
     </div>
 
     <div id="panel-power" class="status-panel-power" hidden>
@@ -107,6 +132,27 @@
         <span>Restart</span>
       </button>
     </div>
+  </div>
+
+  <div id="wifi-panel" class="wifi-panel-popup" hidden role="dialog" aria-label="Wi-Fi networks">
+    <div class="wifi-panel-head">
+      <span class="wifi-panel-title">
+        <svg class="wifi-panel-title-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+          <line x1="12" y1="20" x2="12.01" y2="20"></line>
+        </svg>
+        Wi-Fi
+      </span>
+      <button id="wifi-refresh" type="button" class="wifi-refresh" aria-label="Rescan Wi-Fi networks" title="Rescan">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+        </svg>
+      </button>
+    </div>
+    <div id="wifi-state" class="wifi-state">—</div>
+    <ul id="wifi-list" class="wifi-list"></ul>
   </div>
 
   <script src="toolbar.js"></script>
