@@ -1,7 +1,7 @@
 {
-  "name": "lab-lock",
+  "name": "halisy-workstudio",
   "version": "0.1.0",
-  "description": "LabLock — Locked-down kiosk browser for school computer labs",
+  "description": "HALISY WORKStudio — Locked-down kiosk workspace for children's computers",
   "main": "dist/main/main.js",
   "private": true,
   "author": "Saintdannyyy",
@@ -19,8 +19,8 @@
     "typescript": "^7.0.2"
   },
   "build": {
-    "appId": "com.lablock.kiosk",
-    "productName": "LabLock",
+    "appId": "com.halisy.workstudio",
+    "productName": "HALISY WORKStudio",
     "directories": {
       "output": "release"
     },
@@ -49,6 +49,7 @@
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico",
+      "executableName": "HalisyWorkStudio",
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "asar": true

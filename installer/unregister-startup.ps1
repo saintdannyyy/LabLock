@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-Removes LabLock's startup registration created by register-startup.ps1.
+Removes HALISY WORKStudio's startup registration created by register-startup.ps1.
 
 .DESCRIPTION
 Removes whichever registration exists:
-  - the Scheduled Task named "LabLock" (removing a per-user
+  - the Scheduled Task named "HALISY WORKStudio" (removing a per-user
     task does not require admin; the -AllUsers variant does, so pass -AllUsers
     if the original registration was created that way), and/or
-  - the HKCU Run registry entry named "LabLock".
+  - the HKCU Run registry entry named "HALISY WORKStudio".
 
 Safe to run with no arguments -- it deletes whatever is found and reports what
 it removed.
@@ -25,9 +25,9 @@ param(
 
 $ErrorActionPreference = "Continue"
 
-$taskName = "LabLock"
+$taskName = "HALISY WORKStudio"
 $runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-$runValueName = "LabLock"
+$runValueName = "HALISY WORKStudio"
 
 function Test-Elevated {
   $principal = New-Object Security.Principal.WindowsPrincipal(

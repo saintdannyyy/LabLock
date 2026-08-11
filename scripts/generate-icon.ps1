@@ -1,4 +1,4 @@
-# Generates the LabLock app icon:
+# Generates the HALISY WORKStudio app icon:
 #   build/icon.png  - 512x512 master
 #   build/icon.ico  - multi-size (256/128/64/48/32/24/16), PNG-compressed entries
 #
@@ -24,7 +24,7 @@ function New-RoundedRectPath([System.Drawing.RectangleF]$rect, [float]$radius) {
     return $path
 }
 
-function New-LabLockBitmap([int]$size) {
+function New-WorkStudioBitmap([int]$size) {
     $bmp = New-Object -TypeName System.Drawing.Bitmap -ArgumentList @(
         $size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
@@ -123,7 +123,7 @@ function Save-Ico([string]$path, [System.Drawing.Bitmap[]]$images) {
 $outDir = Join-Path $PSScriptRoot '..\build'
 New-Item -ItemType Directory -Path $outDir -Force | Out-Null
 
-$master = New-LabLockBitmap 512
+$master = New-WorkStudioBitmap 512
 $master.Save((Join-Path $outDir 'icon.png'), [System.Drawing.Imaging.ImageFormat]::Png)
 
 $sizes = @(256, 128, 64, 48, 32, 24, 16)

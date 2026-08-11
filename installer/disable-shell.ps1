@@ -11,7 +11,7 @@
     * Run this if the shell replacement broke the machine.
     * In Safe Mode: Shift+Restart → Troubleshoot → Advanced Options → Startup Settings → 4
       Then open elevated PowerShell and run this script.
-    * The rollback file is at $env:ProgramData\LabLock\winlogon-shell.backup.txt
+    * The rollback file is at $env:ProgramData\HALISY WORKStudio\winlogon-shell.backup.txt
     * If the backup file is missing, defaults to 'explorer.exe'.
 
 .EXAMPLE
@@ -32,7 +32,7 @@ if (-not (Test-Admin)) {
     exit 1
 }
 
-$backupDir = Join-Path $env:ProgramData 'LabLock'
+$backupDir = Join-Path $env:ProgramData 'HALISY WORKStudio'
 $backupFile = Join-Path $backupDir 'winlogon-shell.backup.txt'
 
 # Read backup or default to explorer.exe
