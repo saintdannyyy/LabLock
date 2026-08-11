@@ -1,23 +1,30 @@
 import 'dotenv/config';
 import { app, dialog, BrowserWindow, Menu, ipcMain, powerMonitor, net } from 'electron';
-import { loadWhitelist, saveWhitelist } from './whitelist';
-import { createMainWindow, getWhitelistForRenderer, navigateToSite, goHome, goBack, shutdownComputer, restartComputer, updateWhitelist, notifyWhitelistRefreshed, KIOSK, setAllowClose, setPanelOpen, sendToToolbar, onToolbarReady } from './window';
+import { loadProfiles, saveProfiles, setActiveProfile, getActiveProfile } from './profiles';
+import { createMainWindow, getWhitelistForRenderer, getPlatformsForRenderer, getProfilesForRenderer, selectProfile, showPicker, launchApp, navigateToSite, goHome, goBack, shutdownComputer, shutdownImmediately, restartComputer, refreshActiveProfile, notifyWhitelistRefreshed, notifyPlannerChanged, KIOSK, setAllowClose, setPanelOpen, setBannerOpen, sendToToolbar, onToolbarReady, getScreenTimeStatus, pauseScreenTimeForAdmin, resumeScreenTimeForAdmin, getUsageForAdmin, enforceUsageHours, broadcastTheme } from './window';
+import { setHandlers as setScreenTimeHandlers, grantOverride as grantScreenTimeOverride } from './screen-time';
+import { detach as detachUsage } from './usage';
+import { loadPlanner, savePlanner, validatePlanner } from './planner';
 import { registerIpcHandlers } from './ipc';
 import { appendActivity, readActivity, clearActivity } from './history';
 import { startInputHook, stopInputHook } from './input-hook';
 import { getSystemStatus, setSystemVolume } from './system-status';
+import { scanWifi, connectWifi, forgetWifi } from './wifi';
+import { listInstalledApps, listInstalledAppIcons } from './apps';
+import { getTheme, setTheme, subscribeTheme } from './settings';
 import { preloadFile, rendererFile, watchdogExePath } from './paths';
 import { IPC } from '../shared/types';
 import { createServer } from 'net';
 import { spawn } from 'child_process';
-import type { WhitelistFile, SaveResult, ActivityPage, ActivityEvent, VolumeRequest } from '../shared/types';
+import type { SaveResult, ActivityPage, ActivityEvent, VolumeRequest, ProfilesFile, PlatformEntry, ScreenTimeStatus, UsageSnapshot, PlannerFile, WifiScanResult, WifiActionResult, WifiConnectRequest, InstalledApp, Theme } from '../shared/types';
 
 // electron-builder strips `productName` from the packaged package.json inside
-// app.asar, leaving only the lowercase npm `name` ("lab-lock"). Electron uses
-// that name for the per-user data folder, so without this the installed app
-// writes to %APPDATA%\lab-lock instead of %APPDATA%\LabLock. Pin the branded
-// name early so app.getPath('userData') (activity log, session data) uses it.
-app.setName('LabLock');
+// app.asar, leaving only the lowercase npm `name` ("halisy-workstudio").
+// Electron uses that name for the per-user data folder, so without this the
+// installed app writes to %APPDATA%\halisy-workstudio instead of
+// %APPDATA%\HALISY WORKStudio. Pin the branded name early so
+// app.getPath('userData') (activity log, profiles, session data) uses it.
+app.setName('HALISY WORKStudio');
 
 const ESCAPE_PIPE_NAME = 'lockdown-escape';
 const ADMIN_PASSWORD = process.env.LOCKDOWN_ADMIN_PASSWORD || 'admin123'; // default for dev; override in production
@@ -30,8 +37,78 @@ let escapePromptWindow: BrowserWindow | null = null;
 // compromised non-admin renderer cannot write the whitelist or read history.
 let adminAuthenticated = false;
 
+// Screen-time limit banner. The toolbar renders the banner + countdown while
+// `screenTimeCountdownSec > 0`; the countdown lives here (single source of
+// truth) and calls shutdownComputer() at zero so an admin override is the only
+// way to keep the session alive past the daily quota.
+const SCREEN_TIME_GRACE_SEC = 60;
+const SCREEN_TIME_EXTEND_MINUTES = 30;
+let screenTimeCountdownTimer: NodeJS.Timeout | null = null;
+let screenTimeCountdownSec = 0;
+let extendPromptWindow: BrowserWindow | null = null;
+
+function pushScreenTimeStatus(extra?: Partial<ScreenTimeStatus>): void {
+  sendToToolbar(IPC.SCREEN_TIME_EVENT, { ...getScreenTimeStatus(), ...extra });
+}
+
+function stopScreenTimeCountdown(): void {
+  if (screenTimeCountdownTimer) {
+    clearInterval(screenTimeCountdownTimer);
+    screenTimeCountdownTimer = null;
+  }
+  screenTimeCountdownSec = 0;
+  pushScreenTimeStatus({ countdownSec: 0 });
+}
+
+function startScreenTimeCountdown(): void {
+  if (screenTimeCountdownTimer) return;
+  logActivity('screen-time-limit', 'Daily screen-time limit reached — shutting down in 60s');
+  screenTimeCountdownSec = SCREEN_TIME_GRACE_SEC;
+  pushScreenTimeStatus({ countdownSec: screenTimeCountdownSec });
+  screenTimeCountdownTimer = setInterval(() => {
+    screenTimeCountdownSec -= 1;
+    if (screenTimeCountdownSec <= 0) {
+      stopScreenTimeCountdown();
+      shutdownImmediately();
+      return;
+    }
+    pushScreenTimeStatus({ countdownSec: screenTimeCountdownSec });
+  }, 1000);
+}
+
 function logActivity(kind: ActivityEvent['kind'], detail: string, url?: string): void {
-  appendActivity({ ts: new Date().toISOString(), kind, detail, url });
+  appendActivity({ ts: new Date().toISOString(), kind, detail, url, profile: getActiveProfile()?.id });
+}
+
+// Human-readable audit of what an admin profiles save actually changed, so the
+// activity log records additions/removals explicitly (a removal must never be
+// invisible). Keyed by profileId:platformId so a rename + identical re-add is
+// reported as remove + add rather than silently skipped.
+function describePlatformChanges(prev: ProfilesFile, next: ProfilesFile): string {
+  const key = (p: { id: string }, a: PlatformEntry): string => `${p.id}:${a.id}`;
+  const before = new Map<string, { name: string; profile: string }>();
+  for (const p of prev.profiles) {
+    for (const a of p.apps) before.set(key(p, a), { name: a.name, profile: p.name });
+  }
+  const after = new Map<string, { name: string; profile: string }>();
+  for (const p of next.profiles) {
+    for (const a of p.apps) after.set(key(p, a), { name: a.name, profile: p.name });
+  }
+
+  const added: string[] = [];
+  const removed: string[] = [];
+  for (const [k, v] of after) {
+    if (!before.has(k)) added.push(`${v.name} (${v.profile})`);
+  }
+  for (const [k, v] of before) {
+    if (!after.has(k)) removed.push(`${v.name} (${v.profile})`);
+  }
+
+  const parts: string[] = [];
+  if (added.length > 0) parts.push(`Added ${added.length}: ${added.join(', ')}`);
+  if (removed.length > 0) parts.push(`Removed ${removed.length}: ${removed.join(', ')}`);
+  if (parts.length === 0) parts.push(`Saved ${next.profiles.length} profile(s) without platform changes`);
+  return parts.join(' · ');
 }
 
 function closeEscapeWindow(): void {
@@ -120,9 +197,14 @@ function showAdminEscapeDialog(mainWindow: BrowserWindow): void {
 
   escapePromptWindow.once('ready-to-show', () => escapePromptWindow?.show());
 
+  // Admin time is not child screen time: don't count the escape dialog / admin
+  // console session against the profile's daily quota.
+  pauseScreenTimeForAdmin();
+
   escapePromptWindow.on('closed', () => {
     escapePromptWindow = null;
     adminAuthenticated = false;
+    resumeScreenTimeForAdmin();
   });
 
   // Listen for password result
@@ -151,6 +233,72 @@ function showAdminEscapeDialog(mainWindow: BrowserWindow): void {
   ipcMain.once(channel, handler);
 }
 
+// Admin override for the screen-time limit: a full-screen password prompt
+// (same escape page in `mode=extend`, which swaps the title/button text). A
+// correct password grants SCREEN_TIME_EXTEND_MINUTES more minutes and cancels
+// the pending shutdown countdown. Cancel/wrong-password leaves the banner
+// running.
+function showExtendDialog(mainWindow: BrowserWindow): void {
+  if (extendPromptWindow) return;
+
+  extendPromptWindow = new BrowserWindow({
+    width: 400,
+    height: 340,
+    parent: mainWindow,
+    modal: true,
+    show: false,
+    frame: false,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    closable: true,
+    alwaysOnTop: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      preload: preloadFile('escape-preload.js'),
+    },
+  });
+
+  extendPromptWindow.setBounds(mainWindow.getBounds());
+  extendPromptWindow.loadFile(rendererFile('escape', 'escape.html'), { query: { mode: 'extend' } });
+  extendPromptWindow.once('ready-to-show', () => extendPromptWindow?.show());
+
+  pauseScreenTimeForAdmin();
+
+  extendPromptWindow.on('closed', () => {
+    extendPromptWindow = null;
+    resumeScreenTimeForAdmin();
+  });
+
+  const channel = 'extend:password-result';
+  const handler = (_evt: Electron.IpcMainEvent, enteredPassword: string) => {
+    ipcMain.removeListener(channel, handler);
+    if (enteredPassword === '__CANCEL__') {
+      closeExtendWindow();
+      return;
+    }
+    if (enteredPassword === ADMIN_PASSWORD) {
+      logActivity('override', `Admin extended screen time by ${SCREEN_TIME_EXTEND_MINUTES} minutes`);
+      grantScreenTimeOverride(SCREEN_TIME_EXTEND_MINUTES);
+      closeExtendWindow();
+    } else {
+      logActivity('escape', 'Incorrect password attempt (screen-time override)');
+      closeExtendWindow();
+      dialog.showErrorBox('Incorrect Password', 'The password you entered is incorrect.');
+    }
+  };
+  ipcMain.once(channel, handler);
+}
+
+function closeExtendWindow(): void {
+  if (extendPromptWindow) {
+    extendPromptWindow.close();
+    extendPromptWindow = null;
+  }
+}
+
 function stopEscapePipeServer(): void {
   if (escapePipeServer) {
     escapePipeServer.close();
@@ -169,21 +317,27 @@ app.whenReady().then(() => {
     Menu.setApplicationMenu(null);
   }
 
-  let whitelist: WhitelistFile;
+  let profilesFile: ProfilesFile;
   try {
-    whitelist = loadWhitelist();
+    profilesFile = loadProfiles();
   } catch (err) {
-    // Fail loud: never silently start with an empty/broken whitelist.
+    // Fail loud: never silently start with a broken profiles config.
     dialog.showErrorBox(
-      'Lockdown Kiosk Browser — Configuration Error',
-      `The whitelist configuration could not be loaded:\n\n${(err as Error).message}\n\n` +
-        'The app will now exit. Fix config/whitelist.json and restart.',
+      'HALISY WORKStudio — Configuration Error',
+      `The profiles configuration could not be loaded:\n\n${(err as Error).message}\n\n` +
+        'The app will now exit. Fix the profiles.json config and restart.',
     );
     app.quit();
     return;
   }
 
-  const mainWindow = createMainWindow(whitelist);
+  // Boot straight into the grid when there's exactly one profile; otherwise
+  // show the "who is using this?" picker first.
+  if (profilesFile.profiles.length === 1) {
+    setActiveProfile(profilesFile.profiles[0].id);
+  }
+
+  const mainWindow = createMainWindow();
 
   if (KIOSK) {
     const hookPid = startInputHook(mainWindow);
@@ -202,6 +356,12 @@ app.whenReady().then(() => {
 
   registerIpcHandlers({
     getWhitelistForRenderer,
+    getPlatformsForRenderer,
+    getProfilesForRenderer,
+    selectProfile,
+    showPicker,
+    launchApp,
+    getScreenTimeStatus,
     navigateToSite,
     goHome,
     goBack,
@@ -209,30 +369,96 @@ app.whenReady().then(() => {
     restartComputer,
   });
 
-  // Admin-console IPC (whitelist save, activity log). Every handler is gated
-  // on adminAuthenticated so only a correctly-authenticated escape window can
-  // mutate the whitelist or read history. The window controls above are for
-  // the toolbar/content views and stay ungated (they only affect navigation).
-  ipcMain.handle(IPC.SAVE_WHITELIST, (_event, payload: unknown): SaveResult => {
+  // UI theme (dark mode). The toolbar toggle sets it; main persists it and
+  // pushes the new value to every app renderer (toolbar, content pages, loading
+  // overlay, escape/admin windows) so the whole kiosk flips together.
+  ipcMain.handle(IPC.THEME_GET, (): Theme => getTheme());
+  ipcMain.handle(IPC.THEME_SET, (_event, theme: unknown): Theme => setTheme(theme));
+  subscribeTheme((theme) => {
+    broadcastTheme(theme);
+    for (const win of [escapePromptWindow, extendPromptWindow]) {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send(IPC.THEME_CHANGED, theme);
+      }
+    }
+  });
+
+  // Screen-time ticker callbacks. onChange streams every per-second status
+  // update to the toolbar banner; onLimit fires exactly once when the daily
+  // quota is hit and starts the shutdown countdown. While a countdown is
+  // running it owns the push cadence (it also carries `countdownSec`), so the
+  // module's raw onChange pushes are suppressed to avoid flickering the
+  // countdown back to "--:--".
+  setScreenTimeHandlers({
+    onChange: (status) => {
+      // Off-hours routing is independent of the daily quota: the moment the
+      // allowed-window check flips, route to/away from the restricted screen.
+      enforceUsageHours(status.inUsageWindow);
+      if (screenTimeCountdownTimer) {
+        // An admin override landed (or the day rolled over) and the countdown
+        // is already being torn down by the stop below.
+        if (!status.limitReached) stopScreenTimeCountdown();
+        return;
+      }
+      pushScreenTimeStatus();
+    },
+    onLimit: startScreenTimeCountdown,
+  });
+
+  // The banner's "Extend time" button -> admin password prompt. Ungated in the
+  // same sense as the escape hatch: correct password required, so a student
+  // banner tap just opens the dialog (which refuses without admin credentials).
+  ipcMain.on(IPC.SCREEN_TIME_EXTEND, () => {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (win) showExtendDialog(win);
+  });
+
+  // Admin-console IPC (profiles save, activity log). Every handler is gated on
+  // adminAuthenticated so only a correctly-authenticated escape window can
+  // mutate profiles or read history. The window controls above are for the
+  // toolbar/content views and stay ungated (they only affect navigation).
+  ipcMain.handle(IPC.PROFILES_GET, (): ProfilesFile => {
+    if (!adminAuthenticated) return { profiles: [] };
+    return loadProfiles();
+  });
+
+  ipcMain.handle(IPC.PROFILES_SAVE, (_event, payload: unknown): SaveResult => {
     if (!adminAuthenticated) return { ok: false, error: 'Admin authentication required.' };
-    const result = saveWhitelist(payload);
+    const before = loadProfiles();
+    const result = saveProfiles(payload);
     if (result.ok) {
-      // Re-load what was actually written (single source of truth) and swap it
-      // into both main's and window.ts's live copies so enforcement updates
-      // immediately without a restart.
-      whitelist = loadWhitelist();
-      updateWhitelist(whitelist);
+      // Re-load what was actually written (single source of truth), swap it
+      // into window.ts's live copies, and rebuild the toolbar tabs + home grid
+      // so the running kiosk enforces the new app list immediately.
+      const after = loadProfiles();
+      refreshActiveProfile();
       notifyWhitelistRefreshed();
-      logActivity('whitelist-save', `Saved ${whitelist.sites.length} site(s): ${whitelist.sites.map((s) => s.name).join(', ')}`);
+      logActivity('whitelist-change', `Profiles saved — ${describePlatformChanges(before, after)}`);
     }
     return result;
   });
 
-  ipcMain.handle(IPC.ACTIVITY_GET, (_event, offset: number, limit: number): ActivityPage => {
+  // Installed programs (Start Menu) so the admin can grant a native platform by
+  // picking it from a list instead of typing an exe path. Admin-gated: only the
+  // authenticated console ever asks for the installed-app list.
+  ipcMain.handle(IPC.INSTALLED_APPS_GET, (): Promise<InstalledApp[]> => {
+    if (!adminAuthenticated) return Promise.resolve([]);
+    return listInstalledApps();
+  });
+
+  // The icon batch runs on its own (disk-cached) IPC so the picker can show the
+  // fast list first and stream the real logos in as they're extracted.
+  ipcMain.handle(IPC.INSTALLED_APPS_ICONS_GET, (): Promise<Record<string, string>> => {
+    if (!adminAuthenticated) return Promise.resolve({});
+    return listInstalledAppIcons();
+  });
+
+  ipcMain.handle(IPC.ACTIVITY_GET, (_event, offset: number, limit: number, date?: unknown): ActivityPage => {
     if (!adminAuthenticated) return { total: 0, events: [] };
     const safeOffset = Math.max(0, Math.trunc(Number(offset)) || 0);
     const safeLimit = Math.max(1, Math.min(Math.trunc(Number(limit)) || 100, 500));
-    return readActivity(safeOffset, safeLimit);
+    const safeDate = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined;
+    return readActivity(safeOffset, safeLimit, safeDate);
   });
 
   ipcMain.handle(IPC.ACTIVITY_CLEAR, () => {
@@ -242,8 +468,82 @@ app.whenReady().then(() => {
     return { ok: true };
   });
 
+  ipcMain.handle(IPC.USAGE_GET, (): UsageSnapshot => {
+    if (!adminAuthenticated) return { date: '', profiles: [] };
+    return getUsageForAdmin();
+  });
+
+  // Per-profile planner (calendar / timetable / to-dos). Admin reads/writes are
+  // password-gated; the child view reads only the ACTIVE profile's planner and
+  // is deliberately ungated (read-only, no profileId is even accepted from the
+  // renderer, so a compromised child page cannot read another profile's plan).
+  ipcMain.handle(IPC.PLANNER_GET, (_event, profileId: unknown): PlannerFile => {
+    if (!adminAuthenticated) return { events: [], timetable: [], todos: [] };
+    const id = typeof profileId === 'string' ? profileId : '';
+    if (!id) return { events: [], timetable: [], todos: [] };
+    return loadPlanner(id);
+  });
+
+  ipcMain.handle(IPC.PLANNER_SAVE, (_event, profileId: unknown, payload: unknown): SaveResult => {
+    if (!adminAuthenticated) return { ok: false, error: 'Admin authentication required.' };
+    const id = typeof profileId === 'string' ? profileId : '';
+    if (!id) return { ok: false, error: 'A profile id is required.' };
+    const result = savePlanner(id, payload);
+    if (result.ok) {
+      logActivity('whitelist-change', 'Planner saved');
+      notifyPlannerChanged();
+    }
+    return result;
+  });
+
+  ipcMain.handle(IPC.PLANNER_ACTIVE_GET, (): PlannerFile => {
+    const active = getActiveProfile();
+    if (!active) return { events: [], timetable: [], todos: [] };
+    return loadPlanner(active.id);
+  });
+
+  // Child-side to-do edits (check off / add / remove). Ungated and deliberately
+  // scoped to the ACTIVE profile: the renderer never sends a profileId, so a
+  // compromised child page can only mutate the active child's own to-dos --
+  // events/timetable are preserved from the on-disk planner, never touched.
+  ipcMain.handle(IPC.PLANNER_TODOS_UPDATE, (_event, todos: unknown): SaveResult => {
+    const active = getActiveProfile();
+    if (!active) return { ok: false, error: 'No active profile.' };
+    if (!Array.isArray(todos)) return { ok: false, error: 'todos must be an array.' };
+    try {
+      const current = loadPlanner(active.id);
+      const validated = validatePlanner({ ...current, todos }, 'to-do update');
+      return savePlanner(active.id, validated);
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
+
+  // Toolbar Wi-Fi panel (Phase 5). Ungated like the volume control: it only
+  // works when the kiosk process has the rights netsh needs (elevation), and
+  // every successful connect/forget is written to the activity log.
+  ipcMain.handle(IPC.WIFI_SCAN, (): Promise<WifiScanResult> => scanWifi());
+  ipcMain.handle(IPC.WIFI_CONNECT, (_event, req: unknown): Promise<WifiActionResult> => {
+    const raw = (req ?? {}) as Partial<WifiConnectRequest>;
+    const ssid = typeof raw.ssid === 'string' ? raw.ssid.trim() : '';
+    if (!ssid) return Promise.resolve({ ok: false, error: 'A network name is required.' });
+    const password = typeof raw.password === 'string' && raw.password.length > 0 ? raw.password : null;
+    return connectWifi(ssid, password).then((result) => {
+      if (result.ok) logActivity('wifi-connect', `Connected to Wi-Fi network "${ssid}"`);
+      return result;
+    });
+  });
+  ipcMain.handle(IPC.WIFI_FORGET, (_event, ssid: unknown): Promise<WifiActionResult> => {
+    const name = typeof ssid === 'string' ? ssid.trim() : '';
+    if (!name) return Promise.resolve({ ok: false, error: 'A network name is required.' });
+    return forgetWifi(name).then((result) => {
+      if (result.ok) logActivity('wifi-connect', `Forgot Wi-Fi network "${name}"`);
+      return result;
+    });
+  });
+
   ipcMain.on(IPC.ADMIN_CLOSE, () => {
-    // Done button: return to the kiosk (LabLock IS the shell in production),
+    // Done button: return to the kiosk (HALISY WORKStudio IS the shell in production),
     // and drop admin privileges so privileged IPC is gated again.
     adminAuthenticated = false;
     closeEscapeWindow();
@@ -260,6 +560,7 @@ app.whenReady().then(() => {
     return setSystemVolume({ percent, muted });
   });
   ipcMain.on(IPC.PANEL_RESIZE, (_event, open: unknown) => setPanelOpen(open === true));
+  ipcMain.on(IPC.BANNER_RESIZE, (_event, open: unknown) => setBannerOpen(open === true));
 
   // System-status push (control-panel icons). The main process owns the cadence
   // and pushes snapshots over IPC -- the toolbar is a pure listener with no
@@ -306,7 +607,7 @@ app.whenReady().then(() => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow(whitelist);
+      createMainWindow();
     }
   });
 });
@@ -333,6 +634,7 @@ app.on('window-all-closed', () => {
 // Clean up the input hook on app quit
 app.on('before-quit', () => {
   logActivity('app-quit', 'App quit');
+  detachUsage(); // flush any in-flight platform session to its daily record
   stopInputHook();
   stopEscapePipeServer();
 });

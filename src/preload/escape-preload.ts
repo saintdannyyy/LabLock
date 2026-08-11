@@ -6,24 +6,46 @@ import { contextBridge, ipcRenderer } from 'electron';
 // channel names are inlined here -- keep them in sync with the IPC constant in
 // src/shared/types.ts (used by the main process, which isn't sandboxed).
 const IPC = {
-  GET_WHITELIST: 'lockdown:get-whitelist',
-  SAVE_WHITELIST: 'lockdown:save-whitelist',
+  PROFILES_GET: 'lockdown:profiles-get',
+  PROFILES_SAVE: 'lockdown:profiles-save',
+  INSTALLED_APPS_GET: 'lockdown:installed-apps-get',
+  INSTALLED_APPS_ICONS_GET: 'lockdown:installed-apps-icons-get',
   ACTIVITY_GET: 'lockdown:activity-get',
   ACTIVITY_CLEAR: 'lockdown:activity-clear',
+  USAGE_GET: 'lockdown:usage-get',
+  PLANNER_GET: 'lockdown:planner-get',
+  PLANNER_SAVE: 'lockdown:planner-save',
   ADMIN_CLOSE: 'lockdown:admin-close',
+  THEME_GET: 'lockdown:theme-get',
+  THEME_CHANGED: 'lockdown:theme-changed',
 } as const;
 
 contextBridge.exposeInMainWorld('escapeAPI', {
   sendPasswordResult: (password: string): void => {
     ipcRenderer.send('escape:password-result', password);
   },
+  // Screen-time extend dialog (same escape page loaded with ?mode=extend). Main
+  // grants extra minutes on a correct password instead of opening the console.
+  sendExtendResult: (password: string): void => {
+    ipcRenderer.send('extend:password-result', password);
+  },
+  // UI theme mirror (escape dialog + admin console both load this preload).
+  getTheme: (): Promise<'light' | 'dark'> => ipcRenderer.invoke(IPC.THEME_GET),
+  onThemeChanged: (callback: (theme: 'light' | 'dark') => void): void => {
+    ipcRenderer.on(IPC.THEME_CHANGED, (_event, theme: 'light' | 'dark') => callback(theme));
+  },
 });
 
 contextBridge.exposeInMainWorld('adminAPI', {
-  getWhitelist: (): Promise<unknown> => ipcRenderer.invoke(IPC.GET_WHITELIST),
-  saveWhitelist: (file: unknown): Promise<unknown> => ipcRenderer.invoke(IPC.SAVE_WHITELIST, file),
-  getActivity: (offset: number, limit: number): Promise<unknown> =>
-    ipcRenderer.invoke(IPC.ACTIVITY_GET, offset, limit),
+  getProfiles: (): Promise<unknown> => ipcRenderer.invoke(IPC.PROFILES_GET),
+  saveProfiles: (file: unknown): Promise<unknown> => ipcRenderer.invoke(IPC.PROFILES_SAVE, file),
+  getInstalledApps: (): Promise<unknown> => ipcRenderer.invoke(IPC.INSTALLED_APPS_GET),
+  getInstalledAppIcons: (): Promise<unknown> => ipcRenderer.invoke(IPC.INSTALLED_APPS_ICONS_GET),
+  getActivity: (offset: number, limit: number, date?: string): Promise<unknown> =>
+    ipcRenderer.invoke(IPC.ACTIVITY_GET, offset, limit, date),
   clearActivity: (): Promise<unknown> => ipcRenderer.invoke(IPC.ACTIVITY_CLEAR),
+  getUsage: (): Promise<unknown> => ipcRenderer.invoke(IPC.USAGE_GET),
+  getPlanner: (profileId: string): Promise<unknown> => ipcRenderer.invoke(IPC.PLANNER_GET, profileId),
+  savePlanner: (profileId: string, file: unknown): Promise<unknown> => ipcRenderer.invoke(IPC.PLANNER_SAVE, profileId, file),
   close: (): void => ipcRenderer.send(IPC.ADMIN_CLOSE),
 });

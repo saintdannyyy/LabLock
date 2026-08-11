@@ -33,10 +33,16 @@ export function appendActivity(event: ActivityEvent): void {
 /**
  * Returns one page of history, newest-first. `offset` is how many newest
  * events to skip (paging), `limit` is the page size. The full file is read so
- * `total` is exact and paging is stable.
+ * `total` is exact and paging is stable. When `date` (local "YYYY-MM-DD") is
+ * given, only events from that day are returned (admin day-navigator).
  */
-export function readActivity(offset: number, limit: number): ActivityPage {
-  const all = readAllEvents();
+export function readActivity(offset: number, limit: number, date?: string): ActivityPage {
+  const all = readAllEvents().filter((ev) => {
+    if (!date) return true;
+    const d = new Date(ev.ts);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return key === date;
+  });
   const end = all.length - offset;
   const start = Math.max(end - limit, 0);
   return {
