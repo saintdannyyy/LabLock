@@ -616,10 +616,25 @@ function pushBackIfNew(loc: BackTarget): void {
   if (!sameBackTarget(backStack[backStack.length - 1], loc)) backStack.push(loc);
 }
 
+// Attribute the running surface to the web platform configured for `url` (the
+// same lookup navigateToSite uses), so a site restored by Back keeps accruing
+// usage. Falls back to the synthetic 'web' id exactly like navigateToSite.
+function startUsageForUrl(url: string): void {
+  const profile = getActiveProfile();
+  const platform = profile?.apps.find((a) => a.kind === 'web' && a.url === url);
+  startUsageTracking(platform?.id ?? 'web');
+}
+
 // Move to a recorded Back target without pushing it back onto the stack.
+// Usage tracking follows the restored location: leaving a site for the home
+// grid ends the platform session (goHome() does the same), and restoring a
+// site resumes it -- otherwise a session ended with the Back button would
+// never flush (staying in-flight until some other event stops it), so the
+// admin Usage tab would show 0s for web-only profiles.
 function restoreLocation(target: BackTarget): void {
   blockedFrom = null;
   if (target.pane === 'site') {
+    startUsageForUrl(target.url);
     if (currentLoadedUrl === target.url) {
       // The view is still sitting on that site's page — just show it again.
       activeSiteUrl = target.url;
@@ -631,6 +646,7 @@ function restoreLocation(target: BackTarget): void {
       siteView.webContents.loadURL(target.url);
     }
   } else {
+    stopUsageTracking();
     activeSiteUrl = null;
     currentLoadedUrl = null;
     setPane(getActiveProfile() ? 'home' : 'profile');
@@ -699,9 +715,7 @@ export function navigateToSite(url: string): NavigateResult {
   }
 
   // Attribute the session to the active profile's web platform for this url.
-  const profile = getActiveProfile();
-  const platform = profile?.apps.find((a) => a.kind === 'web' && a.url === url);
-  startUsageTracking(platform?.id ?? 'web');
+  startUsageForUrl(url);
 
   // Resume an already-loaded site without reloading (preserves in-site state).
   if (currentLoadedUrl === url) {

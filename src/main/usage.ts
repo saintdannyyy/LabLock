@@ -9,6 +9,13 @@ import * as path from 'path';
 // bloat the counter; a crash mid-session loses at most that one session.
 const RETAIN_DAYS = 90;
 
+// How often the in-flight session is written to disk WITHOUT ending it. Screen
+// time persists on the same cadence, so a crash (no 'before-quit' flush) costs
+// at most ~15s of usage instead of the whole session. Checkpointing only moves
+// a partial sum to disk -- sessionStartedAt advances, so every second is still
+// counted exactly once and mid-session tab-hopping can't inflate the counter.
+const CHECKPOINT_INTERVAL_MS = 15_000;
+
 interface UsageFile {
   days: Record<string, Record<string, number>>;
 }
@@ -16,6 +23,7 @@ interface UsageFile {
 let activeProfileId: string | null = null;
 let activePlatformId: string | null = null;
 let sessionStartedAt = 0;
+let checkpointTimer: NodeJS.Timeout | null = null;
 
 function filePath(profileId: string): string {
   return path.join(app.getPath('userData'), `usage-${profileId}.json`);
@@ -65,18 +73,37 @@ function flushSession(): void {
   sessionStartedAt = 0;
 }
 
+// Write the in-flight session so far but KEEP it open (periodic crash-safety).
+function checkpoint(): void {
+  if (!activeProfileId || !activePlatformId) return;
+  const elapsedSec = Math.max(1, Math.round((Date.now() - sessionStartedAt) / 1000));
+  const file = readFile(activeProfileId);
+  const day = file.days[todayKey()] ?? {};
+  day[activePlatformId] = (day[activePlatformId] ?? 0) + elapsedSec;
+  file.days[todayKey()] = day;
+  writeFile(activeProfileId, file);
+  sessionStartedAt = Date.now();
+}
+
 // Switch the active usage record to a profile. Ends any in-flight session
 // against the previous profile first.
 export function attachProfile(profileId: string): void {
   if (activeProfileId === profileId) return;
   flushSession();
   activeProfileId = profileId;
+  if (!checkpointTimer) {
+    checkpointTimer = setInterval(checkpoint, CHECKPOINT_INTERVAL_MS);
+  }
 }
 
 // End tracking entirely (picker shown, app quitting).
 export function detach(): void {
   flushSession();
   activeProfileId = null;
+  if (checkpointTimer) {
+    clearInterval(checkpointTimer);
+    checkpointTimer = null;
+  }
 }
 
 // A platform became the active surface (web tile opened or native app launched).
