@@ -124,6 +124,8 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .pane-toolbar {
@@ -131,6 +133,10 @@ body {
   align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
+}
+
+.pane-toolbar-sub {
+  margin-bottom: var(--space-2);
 }
 
 .pane-footer {
@@ -290,6 +296,32 @@ body {
   color: var(--color-text);
 }
 
+.site-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.platform-kind {
+  flex: none;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--color-surface-variant);
+  color: var(--color-text-secondary);
+}
+
+.platform-kind.kind-web {
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+}
+
+.platform-kind.kind-native {
+  background: #f3e8fd;
+  color: #7b1fa2;
+}
+
 .site-url {
   font-size: 12.5px;
   color: var(--color-text-secondary);
@@ -411,7 +443,15 @@ body {
 .badge-home     { background: #e6f4ea; color: #1e8e3e; }
 .badge-back     { background: #f1f3f4; color: var(--color-text-secondary); }
 .badge-escape   { background: #f3e8fd; color: #7b1fa2; }
-.badge-whitelist-save { background: #e0f7fa; color: #00695c; }
+.badge-whitelist-save,
+.badge-whitelist-change { background: #e0f7fa; color: #00695c; }
+.badge-profile-switch { background: #fff4d6; color: #7a5c00; }
+.badge-app-launch,
+.badge-app-exit { background: #e6f4ea; color: #1e8e3e; }
+.badge-screen-time-limit { background: #fce8e6; color: #c5221f; }
+.badge-override { background: #f3e8fd; color: #7b1fa2; }
+.badge-wifi-connect { background: #e1f0fd; color: #0b57d0; }
+.badge-restricted { background: #fef7e0; color: #7a5c00; }
 .badge-app-start,
 .badge-app-quit { background: #f1f3f4; color: var(--color-text-tertiary); }
 
@@ -428,11 +468,98 @@ body {
   color: var(--color-text-secondary);
 }
 
+.activity-profile {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
 .activity-empty {
   padding: var(--space-6);
   text-align: center;
   color: var(--color-text-secondary);
   font-size: 14px;
+}
+
+/* ---------- Day navigator ---------- */
+
+.day-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.admin-btn-day {
+  min-width: 32px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--color-text-secondary);
+}
+
+.day-label {
+  min-width: 96px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------- Usage ---------- */
+
+.usage-header {
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.usage-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13.5px;
+}
+
+.usage-name {
+  flex: none;
+  width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.usage-bar-wrap {
+  flex: 1;
+  min-width: 0;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-variant);
+  overflow: hidden;
+}
+
+.usage-bar {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  transition: width var(--duration-medium) var(--ease-standard);
+}
+
+.usage-value {
+  flex: none;
+  width: 72px;
+  text-align: right;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- Modal ---------- */
@@ -466,6 +593,38 @@ body {
   margin-bottom: var(--space-3);
 }
 
+.modal-field-label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.modal-kind {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.kind-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.kind-option:has(input:checked) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+}
+
 .modal-field label {
   display: block;
   margin-bottom: var(--space-1);
@@ -477,6 +636,116 @@ body {
 .field-hint {
   font-weight: 400;
   color: var(--color-text-tertiary);
+}
+
+/* Installed-programs picker (native platforms — pick from a list, no paths) */
+.apps-search {
+  width: 100%;
+  max-width: none;
+  margin-bottom: var(--space-2);
+}
+
+.apps-picker-list {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  padding: var(--space-1);
+}
+
+.apps-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.apps-item:hover {
+  background: var(--color-surface-hover);
+}
+
+.apps-item input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--color-primary);
+}
+
+.apps-item-icon {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-md);
+  object-fit: contain;
+}
+
+.apps-item-icon-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+}
+
+.apps-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.apps-item-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apps-item-exe {
+  font-size: 11.5px;
+  color: var(--color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: Consolas, Menlo, monospace;
+}
+
+.apps-picker-empty {
+  padding: var(--space-3);
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+.apps-picker-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.apps-picker-loading::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-border-strong);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: apps-spin 0.8s linear infinite;
+}
+
+@keyframes apps-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .modal-field input,
@@ -509,4 +778,260 @@ body {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-3);
+}
+
+.admin-btn-sm {
+  height: 30px;
+  padding: 0 var(--space-3);
+  font-size: 12.5px;
+}
+
+/* Usage-hours editor (profile modal) */
+.usage-hours-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.hour-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.hour-input {
+  flex: 1;
+  max-width: 160px;
+}
+
+.hour-sep {
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+
+.hour-empty {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+/* ---------- Planner tab ---------- */
+
+.planner-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+  min-width: 0;
+}
+
+.planner-column {
+  min-width: 0;
+}
+
+.planner-column-wide {
+  min-width: 0;
+}
+
+.planner-heading {
+  margin: 0 0 var(--space-3);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+}
+
+.planner-add-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.planner-input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.planner-input-date {
+  flex: 0 0 132px;
+}
+
+.planner-input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.planner-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.planner-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  font-size: 13.5px;
+}
+
+.planner-row-date {
+  flex: 0 0 84px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.planner-row-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text);
+}
+
+.planner-row.is-done .planner-row-text {
+  text-decoration: line-through;
+  color: var(--color-text-tertiary);
+}
+
+.planner-row-remove {
+  flex: 0 0 auto;
+}
+
+.planner-timetable {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.timetable-day {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.timetable-day-head {
+  padding: var(--space-2) var(--space-3);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-variant);
+}
+
+.timetable-rows {
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.timetable-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.timetable-period {
+  flex: 0 0 90px;
+}
+
+.timetable-subject {
+  flex: 1;
+  min-width: 0;
+}
+
+.timetable-add {
+  margin-top: var(--space-2);
+  align-self: flex-start;
+}
+
+.planner-empty {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  padding: var(--space-2) 0;
+}
+
+/* ==========================================================================
+   Dark theme — override the hardcoded pastel badge/tint colors above with
+   muted dark equivalents (shared.css already swaps the token palette).
+   ========================================================================== */
+:root[data-theme='dark'] .admin-status.is-error,
+:root[data-theme='dark'] .admin-btn-danger,
+:root[data-theme='dark'] .site-action-remove,
+:root[data-theme='dark'] .modal-error {
+  color: #f28b82;
+}
+
+:root[data-theme='dark'] .admin-status.is-success {
+  color: #81c995;
+}
+
+:root[data-theme='dark'] .admin-btn-danger:hover,
+:root[data-theme='dark'] .site-action-remove:hover {
+  background: rgba(242, 139, 130, 0.14);
+}
+
+:root[data-theme='dark'] .platform-kind.kind-native,
+:root[data-theme='dark'] .badge-escape,
+:root[data-theme='dark'] .badge-override {
+  background: rgba(215, 174, 251, 0.16);
+  color: #d7aefb;
+}
+
+:root[data-theme='dark'] .badge-blocked,
+:root[data-theme='dark'] .badge-screen-time-limit {
+  background: rgba(242, 139, 130, 0.16);
+  color: #f28b82;
+}
+
+:root[data-theme='dark'] .badge-home,
+:root[data-theme='dark'] .badge-app-launch,
+:root[data-theme='dark'] .badge-app-exit {
+  background: rgba(129, 201, 149, 0.16);
+  color: #81c995;
+}
+
+:root[data-theme='dark'] .badge-whitelist-save,
+:root[data-theme='dark'] .badge-whitelist-change {
+  background: rgba(110, 203, 255, 0.16);
+  color: #6ecbff;
+}
+
+:root[data-theme='dark'] .badge-profile-switch,
+:root[data-theme='dark'] .badge-restricted {
+  background: rgba(253, 216, 110, 0.16);
+  color: #fdd86e;
+}
+
+:root[data-theme='dark'] .badge-wifi-connect {
+  background: rgba(138, 180, 248, 0.16);
+  color: #8ab4f8;
+}
+
+:root[data-theme='dark'] .badge-power,
+:root[data-theme='dark'] .badge-back,
+:root[data-theme='dark'] .badge-app-start,
+:root[data-theme='dark'] .badge-app-quit {
+  background: var(--color-surface-variant);
+}
+
+:root[data-theme='dark'] .modal {
+  background: rgba(0, 0, 0, 0.7);
 }

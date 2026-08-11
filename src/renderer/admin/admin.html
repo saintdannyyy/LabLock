@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' https:; font-src 'self';" />
-  <title>Admin Console — Halisy Lablock</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' https: data:; font-src 'self';" />
+  <title>Admin Console — HALISY WORKStudio</title>
   <link rel="stylesheet" href="admin.css" />
 </head>
 <body>
@@ -11,26 +11,81 @@
     <header class="admin-header">
       <div class="admin-title-group">
         <h1 id="admin-title" class="admin-title">Admin Console</h1>
-        <p class="admin-subtitle">Halisy Lablock — signed in as administrator</p>
+        <p class="admin-subtitle">HALISY WORKStudio — signed in as administrator</p>
       </div>
     </header>
 
     <nav class="admin-tabs" aria-label="Admin sections">
-      <button type="button" class="admin-tab is-active" data-tab="sites" aria-controls="tab-sites">Allowed Sites</button>
+      <button type="button" class="admin-tab is-active" data-tab="sites" aria-controls="tab-sites">Permitted Platforms</button>
+      <button type="button" class="admin-tab" data-tab="usage" aria-controls="tab-usage">Usage</button>
+      <button type="button" class="admin-tab" data-tab="planner" aria-controls="tab-planner">Planner</button>
       <button type="button" class="admin-tab" data-tab="activity" aria-controls="tab-activity">Activity Log</button>
     </nav>
 
     <main class="admin-body">
-      <!-- Allowed sites -->
-      <section id="tab-sites" class="admin-pane" aria-label="Allowed sites">
+      <!-- Permitted platforms (per profile) -->
+      <section id="tab-sites" class="admin-pane" aria-label="Permitted platforms">
         <div class="pane-toolbar">
-          <button type="button" class="admin-btn admin-btn-primary" id="add-site-btn">Add site</button>
+          <select id="profile-select" class="admin-filter" aria-label="Choose a profile"></select>
+          <button type="button" class="admin-btn" id="add-profile-btn" title="Add a new child profile">Add profile</button>
+          <button type="button" class="admin-btn" id="edit-profile-btn" title="Rename or recolor this profile">Edit profile</button>
+          <button type="button" class="admin-btn admin-btn-danger" id="delete-profile-btn" title="Delete this profile">Delete profile</button>
           <span id="sites-status" class="admin-status" aria-live="polite"></span>
+        </div>
+        <div class="pane-toolbar pane-toolbar-sub">
+          <button type="button" class="admin-btn admin-btn-primary" id="add-site-btn">Add platform</button>
+          <span class="admin-status">Platforms are restricted to whitelisted approved apps only.</span>
         </div>
         <ul id="sites-list" class="sites-list"></ul>
         <div class="pane-footer">
           <button type="button" class="admin-btn admin-btn-save" id="save-btn">Save changes</button>
           <button type="button" class="admin-btn" id="discard-btn">Done</button>
+        </div>
+      </section>
+
+      <!-- Usage (per profile, today) -->
+      <section id="tab-usage" class="admin-pane" aria-label="Platform usage" hidden>
+        <div class="pane-toolbar">
+          <select id="usage-profile-select" class="admin-filter" aria-label="Choose a profile"></select>
+          <span id="usage-date" class="admin-status"></span>
+        </div>
+        <ul id="usage-list" class="activity-list"></ul>
+      </section>
+
+      <!-- Planner (per profile) -->
+      <section id="tab-planner" class="admin-pane" aria-label="Planner" hidden>
+        <div class="pane-toolbar">
+          <select id="planner-profile-select" class="admin-filter" aria-label="Choose a profile"></select>
+          <span id="planner-status" class="admin-status" aria-live="polite"></span>
+        </div>
+        <div class="planner-grid">
+          <div class="planner-column">
+            <h3 class="planner-heading">Calendar events</h3>
+            <div class="planner-add-row">
+              <input type="date" id="planner-event-date" class="planner-input planner-input-date" aria-label="Event date">
+              <input type="text" id="planner-event-title" class="planner-input" placeholder="Event title" autocomplete="off">
+              <button type="button" class="admin-btn admin-btn-sm" id="planner-event-add">Add</button>
+            </div>
+            <ul id="planner-events-list" class="planner-list"></ul>
+          </div>
+
+          <div class="planner-column planner-column-wide">
+            <h3 class="planner-heading">Weekly timetable</h3>
+            <div id="planner-timetable" class="planner-timetable"></div>
+          </div>
+
+          <div class="planner-column">
+            <h3 class="planner-heading">To-dos</h3>
+            <div class="planner-add-row">
+              <input type="text" id="planner-todo-input" class="planner-input" placeholder="New to-do" autocomplete="off">
+              <button type="button" class="admin-btn admin-btn-sm" id="planner-todo-add">Add</button>
+            </div>
+            <ul id="planner-todos-list" class="planner-list"></ul>
+          </div>
+        </div>
+        <div class="pane-footer">
+          <button type="button" class="admin-btn admin-btn-save" id="planner-save-btn">Save planner</button>
+          <span class="admin-status">Changes to events, timetable and to-dos apply after Save.</span>
         </div>
       </section>
 
@@ -42,13 +97,26 @@
             <option value="">All types</option>
             <option value="navigate">Navigations</option>
             <option value="blocked">Blocked</option>
+            <option value="app-launch">App launches</option>
+            <option value="app-exit">App exits</option>
+            <option value="profile-switch">Profile switches</option>
+            <option value="screen-time-limit">Screen time</option>
+            <option value="override">Overrides</option>
+            <option value="restricted">Off-hours</option>
+            <option value="wifi-connect">Wi-Fi</option>
             <option value="power">Power</option>
             <option value="home">Home</option>
             <option value="back">Back</option>
             <option value="escape">Admin</option>
-            <option value="whitelist-save">Config</option>
+            <option value="whitelist-change">Config changes</option>
             <option value="app-start">System</option>
           </select>
+          <div class="day-nav" role="group" aria-label="Choose a day">
+            <button type="button" id="day-prev-btn" class="admin-btn admin-btn-day" aria-label="Previous day">‹</button>
+            <span id="day-label" class="day-label">Today</span>
+            <button type="button" id="day-next-btn" class="admin-btn admin-btn-day" aria-label="Next day" disabled>›</button>
+          </div>
+          <button type="button" class="admin-btn" id="day-today-btn">Today</button>
           <button type="button" class="admin-btn admin-btn-danger" id="clear-history-btn">Clear history</button>
         </div>
         <ul id="activity-list" class="activity-list"></ul>
@@ -57,25 +125,44 @@
     </main>
   </div>
 
-  <!-- Add / edit site modal -->
+  <!-- Add / edit platform modal -->
   <div id="edit-modal" class="modal" hidden>
     <form class="modal-card" id="edit-form" novalidate>
-      <h2 id="edit-title" class="modal-title">Add site</h2>
-      <div class="modal-field">
+      <h2 id="edit-title" class="modal-title">Add platform</h2>
+      <div class="modal-field web-only" id="field-name">
         <label for="edit-name">Name</label>
         <input type="text" id="edit-name" autocomplete="off" spellcheck="false" placeholder="e.g. J100 Coders">
       </div>
       <div class="modal-field">
+        <span class="modal-field-label">Type</span>
+        <div class="modal-kind">
+          <label class="kind-option">
+            <input type="radio" name="kind" id="edit-kind-web" value="web" checked>
+            <span>Web app</span>
+          </label>
+          <label class="kind-option">
+            <input type="radio" name="kind" id="edit-kind-native" value="native">
+            <span>Installed program</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-field web-only" id="field-url">
         <label for="edit-url">URL</label>
         <input type="text" id="edit-url" autocomplete="off" spellcheck="false" placeholder="https://example.org">
       </div>
-      <div class="modal-field">
+      <div class="modal-field web-only" id="field-hosts">
         <label for="edit-hosts">Allowed hosts <span class="field-hint">(bare hostnames only — no URLs or paths, one per line; the main site is always allowed)</span></label>
         <textarea id="edit-hosts" rows="3" spellcheck="false" placeholder="example.com&#10;*.example.com"></textarea>
       </div>
-      <div class="modal-field">
+      <div class="modal-field web-only" id="field-embed-hosts">
         <label for="edit-embed-hosts">Embed-only hosts <span class="field-hint">(one per line — allowed inside iframes, never browseable as a page)</span></label>
         <textarea id="edit-embed-hosts" rows="3" spellcheck="false" placeholder="*.youtube.com&#10;*.google.com"></textarea>
+      </div>
+      <div class="modal-field native-only" id="field-apps" hidden>
+        <span class="modal-field-label">Installed programs <span class="field-hint">(pick the programs to allow — no file paths needed)</span></span>
+        <input type="search" id="apps-search" class="admin-search apps-search" placeholder="Search installed programs…" autocomplete="off" spellcheck="false" aria-label="Search installed programs">
+        <div id="apps-list" class="apps-picker-list" aria-live="polite"></div>
+        <span id="apps-hint" class="field-hint"></span>
       </div>
       <div class="modal-field">
         <label for="edit-icon">Icon file name <span class="field-hint">(optional)</span></label>
@@ -85,6 +172,35 @@
       <div class="modal-actions">
         <button type="button" class="admin-btn" id="modal-cancel-btn">Cancel</button>
         <button type="submit" class="admin-btn admin-btn-save" id="modal-save-btn">Apply</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Add / edit profile modal -->
+  <div id="profile-modal" class="modal" hidden>
+    <form class="modal-card" id="profile-form" novalidate>
+      <h2 id="profile-modal-title" class="modal-title">Add profile</h2>
+      <div class="modal-field">
+        <label for="profile-name-input">Name</label>
+        <input type="text" id="profile-name-input" autocomplete="off" spellcheck="false" placeholder="e.g. Child 1">
+      </div>
+      <div class="modal-field">
+        <label for="profile-color-input">Avatar colour</label>
+        <input type="color" id="profile-color-input" value="#4285f4">
+      </div>
+      <div class="modal-field">
+        <label for="profile-limit-input">Daily screen-time limit <span class="field-hint">(minutes per day, 0 = unlimited)</span></label>
+        <input type="number" id="profile-limit-input" min="0" step="5" value="0">
+      </div>
+      <div class="modal-field">
+        <span class="modal-field-label">Allowed usage hours <span class="field-hint">(empty = any time; an end before its start wraps past midnight)</span></span>
+        <div id="usage-hours-editor" class="usage-hours-editor"></div>
+        <button type="button" class="admin-btn admin-btn-sm" id="add-hour-btn">Add window</button>
+      </div>
+      <p id="profile-error" class="modal-error" aria-live="polite"></p>
+      <div class="modal-actions">
+        <button type="button" class="admin-btn" id="profile-modal-cancel-btn">Cancel</button>
+        <button type="submit" class="admin-btn admin-btn-save" id="profile-modal-save-btn">Save</button>
       </div>
     </form>
   </div>
