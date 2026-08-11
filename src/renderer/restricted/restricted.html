@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self';" />
+  <title>Outside usage hours — HALISY WORKStudio</title>
+  <link rel="stylesheet" href="restricted.css" />
+</head>
+<body>
+  <article class="restricted-card" role="alert">
+    <div class="restricted-icon" aria-hidden="true">
+      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+      </svg>
+    </div>
+    <h1 class="restricted-title">This workspace isn't available right now</h1>
+    <p class="restricted-message" id="restricted-message">Screen time is limited to set hours.</p>
+    <div class="restricted-hours" id="restricted-hours" hidden></div>
+    <button id="switch-profile-btn" type="button" class="restricted-btn">Choose a different profile</button>
+  </article>
+  <script src="restricted.js"></script>
+</body>
+</html>

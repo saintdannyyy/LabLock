@@ -18,7 +18,19 @@
   const input = passwordInput; // narrowed non-null alias for use inside closures
   const toggle = toggleBtn;
   const error = errorEl;
-  const send = window.escapeAPI.sendPasswordResult;
+
+  // ?mode=extend reuses this dialog for the screen-time override: same layout,
+  // different channel + copy. Main routes the result to grantOverride().
+  const isExtend = new URLSearchParams(location.search).get('mode') === 'extend';
+  const send = isExtend ? window.escapeAPI.sendExtendResult : window.escapeAPI.sendPasswordResult;
+
+  const titleEl = document.getElementById('escape-title');
+  const subtitleEl = document.getElementById('escape-subtitle');
+  if (isExtend) {
+    if (titleEl) titleEl.textContent = 'Extend time';
+    if (subtitleEl) subtitleEl.textContent = 'Enter the admin password to add screen time.';
+    if (exitBtn) exitBtn.textContent = 'Extend time';
+  }
 
   let submitted = false;
   let passwordVisible = false;
@@ -61,4 +73,12 @@
   });
 
   input.focus();
+
+  // Mirror the app-wide theme (light/dark) off the main process.
+  window.escapeAPI.getTheme?.().then((theme) => {
+    document.documentElement.dataset.theme = theme;
+  }).catch(() => {});
+  window.escapeAPI.onThemeChanged?.((theme) => {
+    document.documentElement.dataset.theme = theme;
+  });
 })();
