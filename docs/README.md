@@ -34,9 +34,16 @@ navigation to anything else.
   - **Sites** — "Permitted platforms" manager per profile: add/edit/remove web
     platforms (name, URL, allowedHosts/embedHosts) and grant **native programs**
     by picking them from the machine's installed apps (Start Menu) — no exe
-    paths are ever typed, so non-technical staff can use it. Saves atomically
-    to `<userData>/profiles.json` and applies **live** to the running kiosk
-    with no restart.
+    paths are ever typed, so non-technical staff can use it. The profile
+    add/edit dialog sets the child's **login password** (required when adding;
+    blank keeps the current one in edit; "Remove this password" clears it, which
+    blocks the profile at the picker). Saves atomically to
+    `<userData>/profiles.json` and applies **live** to the running kiosk with no
+    restart.
+  - **Pending password resets** — a strip above the tabs lists "forgot
+    password" requests from the picker (profile + when). "Set password" opens
+    that profile's edit dialog; "Dismiss" drops the request. Setting a password
+    clears the matching request automatically.
   - **Usage** — per-day, per-profile screen-time totals.
   - **Planner** — per-child planner: calendar events (date + title), a weekly
     timetable (per-day period/subject rows), and checkable to-dos. Saved to
@@ -54,7 +61,12 @@ navigation to anything else.
   avatar, platform membership, a daily screen-time limit (minutes, 0 =
   unlimited) and allowed usage hours (per-weekday `{ day, start, end }`). One
   profile is active at a time; the boot-time picker (shown whenever there are
-  2+ profiles) or the toolbar chip switches it.
+  2+ profiles) or the toolbar chip switches it. **Every profile requires a
+  password** (salted SHA-256, hashed only in the main process) — the picker
+  blocks accounts without one until the admin sets it, and the child signs in
+  with a password each time. A "Forgot password?" link records a request
+  (`<userData>/reset-requests.json`) that the admin acts on from a "Pending
+  password resets" strip in the admin console.
 - **Screen-time limits + usage hours** — a per-second ticker tracks each
   profile's used time against its daily limit (`<userData>/screen-time-<profileId>.json`,
   resets daily). Reaching the limit shows a countdown banner and shuts the
@@ -538,11 +550,16 @@ Run `npm start`, then walk through:
 
 ### Profiles, screen-time, usage hours & planner
 
-1. **Profile picker** — with 0 or 2+ profiles in `<userData>/profiles.json`,
-   boot shows the "who is using this?" picker and the toolbar chip; with exactly
-   one profile it auto-selects it and boots straight to the grid. Switching
-   profile via the toolbar chip changes the app grid and resets the screen-time
-   ticker to that child's ledger.
+1. **Profile picker + sign-in** — boot always shows the "who is using this?"
+   picker (no profile is auto-selected — every account now requires a
+   password). Cards show a lock badge: a closed lock means a password is set,
+   an open lock means the account can't be signed into until an admin sets one.
+   Clicking a card opens the password form; wrong passwords show an inline
+   error and log an `auth-failed` activity event. "Forgot password?" sends a
+   reset request to the admin console's pending-resets strip and shows a
+   confirmation. Switching profile via the toolbar chip goes back through the
+   same sign-in, then changes the app grid and resets the screen-time ticker to
+   that child's ledger.
 2. **Installed-apps picker (native platforms)** — admin console → Permitted
    Platforms → Add platform → **Installed program**: a searchable list of the
    machine's installed apps (Start Menu) appears with checkboxes and the exe

@@ -16,16 +16,20 @@ import type {
   WifiScanResult,
   WifiActionResult,
   InstalledApp,
+  ResetRequest,
 } from '../shared/types';
 
 export {};
 
 declare global {
   // Lightweight profile summary used by the picker (never carries full apps).
+  // `passwordSet` tells the picker whether the account can be unlocked with a
+  // password (passwordless profiles are blocked until an admin sets one).
   interface ProfileSummary {
     id: string;
     name: string;
     avatarColor: string;
+    passwordSet: boolean;
   }
 
   interface Window {
@@ -37,7 +41,8 @@ declare global {
       goHome(): void;
       // Content-view profile/platform API (home grid + picker).
       getProfiles?(): Promise<ProfileSummary[]>;
-      selectProfile?(id: string): Promise<boolean>;
+      authProfile?(id: string, password: string): Promise<{ ok: boolean; error?: string }>;
+      requestPasswordReset?(profileId: string): void;
       getPlatforms?(): Promise<PlatformEntry[]>;
       launchApp?(id: string): Promise<{ ok: boolean; error?: string }>;
       // Toolbar-only additions (optional here because the home/blocked
@@ -84,6 +89,9 @@ declare global {
       getUsage(): Promise<UsageSnapshot>;
       getPlanner(profileId: string): Promise<PlannerFile>;
       savePlanner(profileId: string, file: PlannerFile): Promise<SaveResult>;
+      getResetRequests(): Promise<ResetRequest[]>;
+      clearResetRequests(profileId?: string): Promise<{ ok: boolean }>;
+      setProfilePassword(profileId: string, password: string): Promise<SaveResult>;
       close(): void;
     };
   }

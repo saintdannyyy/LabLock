@@ -15,6 +15,9 @@ const IPC = {
   USAGE_GET: 'lockdown:usage-get',
   PLANNER_GET: 'lockdown:planner-get',
   PLANNER_SAVE: 'lockdown:planner-save',
+  RESET_REQUESTS_GET: 'lockdown:reset-requests-get',
+  RESET_REQUESTS_CLEAR: 'lockdown:reset-requests-clear',
+  PROFILE_SET_PASSWORD: 'lockdown:profile-set-password',
   ADMIN_CLOSE: 'lockdown:admin-close',
   THEME_GET: 'lockdown:theme-get',
   THEME_CHANGED: 'lockdown:theme-changed',
@@ -47,5 +50,9 @@ contextBridge.exposeInMainWorld('adminAPI', {
   getUsage: (): Promise<unknown> => ipcRenderer.invoke(IPC.USAGE_GET),
   getPlanner: (profileId: string): Promise<unknown> => ipcRenderer.invoke(IPC.PLANNER_GET, profileId),
   savePlanner: (profileId: string, file: unknown): Promise<unknown> => ipcRenderer.invoke(IPC.PLANNER_SAVE, profileId, file),
+  getResetRequests: (): Promise<unknown> => ipcRenderer.invoke(IPC.RESET_REQUESTS_GET),
+  clearResetRequests: (profileId?: string): Promise<unknown> => ipcRenderer.invoke(IPC.RESET_REQUESTS_CLEAR, profileId ?? ''),
+  setProfilePassword: (profileId: string, password: string): Promise<unknown> =>
+    ipcRenderer.invoke(IPC.PROFILE_SET_PASSWORD, profileId, password),
   close: (): void => ipcRenderer.send(IPC.ADMIN_CLOSE),
 });

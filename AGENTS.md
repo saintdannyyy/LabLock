@@ -50,7 +50,8 @@ src/main/ipc.ts           # ipcMain handlers (GET_WHITELIST, NAVIGATE_TO, GO_HOM
 src/main/paths.ts         # runtime path resolution (dev vs packaged)
 src/main/input-hook.ts    # spawns InputHook.exe, returns PID for watchdog
 src/main/system-status.ts # control-panel probes: Win32_Battery/network PowerShell + Add-Type C# master volume
-src/main/profiles.ts      # per-child profile definitions (<userData>/profiles.json, migration from legacy whitelist.json)
+src/main/profiles.ts      # per-child profile definitions (<userData>/profiles.json, migration from legacy whitelist.json); password hashing/verification (main-process only)
+src/main/reset-requests.ts # pending "forgot password" requests (<userData>/reset-requests.json) for the admin-console strip
 src/main/screen-time.ts   # per-profile daily limit tracker + usage-hours windows; onChange ticks
 src/main/planner.ts       # per-profile planner storage (events/timetable/todos), <userData>/planner-<profileId>.json
 src/main/wifi.ts          # toolbar Wi-Fi panel: netsh wlan scan/connect/forget (needs elevation)
@@ -93,7 +94,7 @@ bin/watchdog/Watchdog.exe       # committed binary (extraResources)
 - **Watchdog** (`Watchdog.exe`): spawned with `--electron-pid --hook-pid --app-exe`. Polls both PIDs; restarts app exe on unexpected exit; clean shutdown (exit code 0) = no restart.
 
 ## Phase 5 additions
-- **Per-child profiles** (`<userData>/profiles.json`, `src/main/profiles.ts`): name, avatar (emoji or `assets/...`), `dailyLimitMin` (0 = unlimited), `usageHours` (array of `{ day, start, end }`, `day` = `Mon`..`Sun`), platform membership. One profile active at a time (`selectProfile`); boot auto-selects when exactly one profile exists, else shows the picker.
+- **Per-child profiles** (`<userData>/profiles.json`, `src/main/profiles.ts`): name, avatar (emoji or `assets/...`), `dailyLimitMin` (0 = unlimited), `usageHours` (array of `{ day, start, end }`, `day` = `Mon`..`Sun`), platform membership. One profile active at a time (`authProfile` — every profile now requires a password, salted SHA-256 hashed only in main; the boot picker always shows and blocks passwordless accounts). "Forgot password" requests land in `<userData>/reset-requests.json` (`src/main/reset-requests.ts`) and surface in an admin-console strip.
 - **Native platform grants** (`src/main/apps.ts`): admin never types exe paths — a multi-select, searchable picker of installed Start Menu apps (`InstalledApp { id, name, exe, args? }`, stable id = hash of lowercased `exe|args`) maps each checked app to a `PlatformEntry` (`kind: 'native'`); `window.ts` `launchApp(id)` spawns the exe and hides the kiosk until it exits. Usage tracked per platform like web apps.
 - **Screen-time limits** (`src/main/screen-time.ts`): per-profile daily used-seconds ledger (`<userData>/screen-time-<profileId>.json`, resets daily); ticker emits status every second; reaching the limit shows the toolbar countdown banner and a 60s shutdown (blocked by `Extend time` → admin password override, logged as `override`).
 - **Usage-hours enforcement**: outside the profile's usage window the content pane switches to the **restricted** screen (`src/renderer/restricted/`, "off-hours" activity logged). `screen-time.ts` `onChange` → `enforceUsageHours(inWindow)` in `window.ts`; on window close it routes home; reopening a site while off-hours kicks back to the restricted screen.

@@ -52,10 +52,26 @@ export interface Profile {
   dailyLimitMin: number; // 0 = unlimited
   usageHours: UsageWindow[]; // empty = anytime allowed
   apps: PlatformEntry[];
+  // Profile login password. Stored as a salted SHA-256 hash; hashing and
+  // verification happen ONLY in the main process (see src/main/profiles.ts), so
+  // the raw password never touches disk or a renderer. A profile with no
+  // password cannot be selected — the picker blocks it until an admin sets one.
+  passwordHash?: string;
+  passwordSalt?: string;
 }
 
 export interface ProfilesFile {
   profiles: Profile[];
+}
+
+// A pending "I forgot my password" request from the picker, stored in
+// <userData>/reset-requests.json and surfaced to the admin in the admin
+// console's pending-resets strip. The child only sends profileId + profileName
+// (no password material); the admin grants a new password from the console.
+export interface ResetRequest {
+  profileId: string;
+  profileName: string;
+  requestedAt: string; // ISO timestamp
 }
 
 // A program discovered on this PC (a Start Menu shortcut) that the admin can
@@ -123,7 +139,10 @@ export type ActivityKind =
   | 'screen-time-limit'
   | 'override'
   | 'restricted'
-  | 'wifi-connect';
+  | 'wifi-connect'
+  | 'auth-failed'
+  | 'reset-request'
+  | 'password-reset';
 
 export interface ActivityEvent {
   ts: string;
@@ -284,12 +303,17 @@ export const IPC = {
   SYSTEM_STATUS: 'lockdown:system-status',
   // Phase 5: profiles, platforms, apps
   GET_PROFILES: 'lockdown:get-profiles',
-  SELECT_PROFILE: 'lockdown:select-profile',
+  AUTH_PROFILE: 'lockdown:auth-profile', // picker -> main: unlock a profile with its password
+  PASSWORD_RESET_REQUEST: 'lockdown:password-reset-request', // picker -> main: "forgot password" (ungated)
   GET_PLATFORMS: 'lockdown:get-platforms',
   LAUNCH_APP: 'lockdown:launch-app',
   SWITCH_PROFILE: 'lockdown:switch-profile',
   PROFILES_GET: 'lockdown:profiles-get',
   PROFILES_SAVE: 'lockdown:profiles-save',
+  // Admin console -> main: pending password-reset requests + password reset.
+  RESET_REQUESTS_GET: 'lockdown:reset-requests-get',
+  RESET_REQUESTS_CLEAR: 'lockdown:reset-requests-clear',
+  PROFILE_SET_PASSWORD: 'lockdown:profile-set-password',
   // Admin console -> main: enumerate installed programs (Start Menu) so native
   // platforms can be granted by picking from a list instead of typing a path.
   INSTALLED_APPS_GET: 'lockdown:installed-apps-get',

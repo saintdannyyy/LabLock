@@ -7,7 +7,7 @@ interface WindowControls {
   getWhitelistForRenderer(): WhitelistFile;
   getPlatformsForRenderer(): PlatformEntry[];
   getProfilesForRenderer(): ProfileSummary[];
-  selectProfile(id: string): boolean;
+  authProfile(id: string, password: string): { ok: boolean; error?: string };
   showPicker(): void;
   launchApp(id: string): { ok: boolean; error?: string };
   getScreenTimeStatus(): ScreenTimeStatus;
@@ -22,7 +22,7 @@ export function registerIpcHandlers(controls: WindowControls): void {
   ipcMain.handle(IPC.GET_WHITELIST, () => controls.getWhitelistForRenderer());
   ipcMain.handle(IPC.GET_PLATFORMS, () => controls.getPlatformsForRenderer());
   ipcMain.handle(IPC.GET_PROFILES, () => controls.getProfilesForRenderer());
-  ipcMain.handle(IPC.SELECT_PROFILE, (_event, id: string) => controls.selectProfile(id));
+  ipcMain.handle(IPC.AUTH_PROFILE, (_event, id: string, password: string) => controls.authProfile(id, password));
   ipcMain.handle(IPC.LAUNCH_APP, (_event, id: string) => controls.launchApp(id));
   ipcMain.handle(IPC.SCREEN_TIME_GET, () => controls.getScreenTimeStatus());
   // Toolbar avatar -> open the picker (no target id; the picker owns selection).
