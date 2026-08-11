@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self';" />
+  <title>My Plan — HALISY WORKStudio</title>
+  <link rel="stylesheet" href="sidebar.css" />
+</head>
+<body>
+  <aside class="sidebar" aria-label="My plan">
+    <header class="sidebar-head">
+      <span class="sidebar-head-title">My plan</span>
+      <span class="sidebar-head-date" id="sidebar-date"></span>
+    </header>
+
+    <section class="sidebar-card" aria-label="Calendar">
+      <h2 class="sidebar-card-title">
+        <svg class="sidebar-card-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        Calendar
+      </h2>
+      <div class="calendar-head">
+        <button type="button" id="cal-prev" class="cal-nav" aria-label="Previous month">&#8249;</button>
+        <span id="cal-month" class="cal-month"></span>
+        <button type="button" id="cal-next" class="cal-nav" aria-label="Next month">&#8250;</button>
+      </div>
+      <div class="cal-grid" aria-hidden="true">
+        <span class="cal-dow">Sun</span><span class="cal-dow">Mon</span><span class="cal-dow">Tue</span><span class="cal-dow">Wed</span><span class="cal-dow">Thu</span><span class="cal-dow">Fri</span><span class="cal-dow">Sat</span>
+      </div>
+      <div class="cal-grid cal-cells" id="cal-cells" role="grid" aria-label="Month days"></div>
+      <div class="cal-events-head">
+        <span class="cal-events-label">Events</span>
+        <span class="cal-events-date" id="cal-events-date"></span>
+      </div>
+      <ul id="sidebar-events" class="sidebar-list"></ul>
+    </section>
+
+    <section class="sidebar-card" aria-label="Timetable">
+      <h2 class="sidebar-card-title">
+        <svg class="sidebar-card-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        Timetable
+        <span class="sidebar-card-sub" id="sidebar-timetable-day"></span>
+      </h2>
+      <ul id="sidebar-timetable" class="sidebar-list"></ul>
+    </section>
+
+    <section class="sidebar-card" aria-label="To-dos">
+      <h2 class="sidebar-card-title">
+        <svg class="sidebar-card-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 11l3 3L22 4"></path>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+        </svg>
+        To-dos
+      </h2>
+      <div class="sidebar-add">
+        <input type="text" id="sidebar-todo-input" class="sidebar-add-input" placeholder="Add a to-do" maxlength="120" autocomplete="off" aria-label="New to-do" />
+        <button type="button" id="sidebar-todo-add-btn" class="sidebar-add-btn">Add</button>
+      </div>
+      <ul id="sidebar-todos" class="sidebar-list"></ul>
+    </section>
+  </aside>
+
+  <script src="sidebar.js"></script>
+</body>
+</html>
