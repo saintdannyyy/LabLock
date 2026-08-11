@@ -5,7 +5,7 @@ import type { ChildProcess } from 'child_process';
 import { attachNavigationGuard } from './navigation-guard';
 import { preloadFile, rendererFile, iconFileUrl } from './paths';
 import { isUrlAllowed } from './whitelist';
-import { getActiveProfile, setActiveProfile, loadProfiles, webApps } from './profiles';
+import { getActiveProfile, setActiveProfile, loadProfiles, webApps, verifyProfilePassword, profileHasPassword } from './profiles';
 import { appendActivity } from './history';
 import { attachProfile, detach as detachScreenTime, getStatus as getScreenTimeStatusRaw, pause as pauseScreenTime, resume as resumeScreenTime } from './screen-time';
 import { attachProfile as attachUsageProfile, detach as detachUsage, startTracking as startUsageTracking, stopTracking as stopUsageTracking, getPlatformSeconds } from './usage';
@@ -76,6 +76,7 @@ export interface ProfileSummary {
   id: string;
   name: string;
   avatarColor: string;
+  passwordSet: boolean;
 }
 
 // When true, the window's 'close' handler stops preventing the close. Set by
@@ -111,11 +112,31 @@ export function setAllowClose(value: boolean): void {
   allowClose = value;
 }
 
-// Select a child profile from the picker: swap enforcement + UI to that
-// profile's platforms and show its home grid.
-export function selectProfile(id: string): boolean {
+// Unlock a child profile from the picker with its password. Every profile must
+// have a password (the picker blocks passwordless accounts), so this never
+// silently logs anyone in -- wrong or missing credentials log an 'auth-failed'
+// activity event and return a friendly error the picker can show.
+export function authProfile(id: string, password: string): { ok: boolean; error?: string } {
+  const profile = loadProfiles().profiles.find((p) => p.id === id);
+  if (!profile) return { ok: false, error: 'Profile not found.' };
+  if (!profileHasPassword(profile)) {
+    logActivity('auth-failed', `Login blocked for "${profile.name}" — no password set`, undefined, profile.id);
+    return { ok: false, error: 'No password is set for this profile. Ask an administrator to set one.' };
+  }
+  if (!verifyProfilePassword(profile, password)) {
+    logActivity('auth-failed', `Incorrect password for "${profile.name}"`, undefined, profile.id);
+    return { ok: false, error: 'Incorrect password. Try again or ask an administrator to reset it.' };
+  }
+  activateProfile(profile.id);
+  return { ok: true };
+}
+
+// Swap enforcement + UI to a profile's platforms and show its home grid. Only
+// called after a successful password check (authProfile); showPicker() and
+// refreshActiveProfile() handle the no-credential paths.
+function activateProfile(id: string): void {
   const profile = setActiveProfile(id);
-  if (!profile) return false;
+  if (!profile) return;
   syncWhitelistFromProfile();
   applyScreenTimeForProfile();
   applyUsageForProfile();
@@ -123,11 +144,10 @@ export function selectProfile(id: string): boolean {
   currentLoadedUrl = null;
   logActivity('profile-switch', `Switched to ${profile.name}`, undefined, profile.id);
   notifyWhitelistRefreshed();
-  if (showRestrictedIfNeeded()) return true; // outside allowed hours -> restricted screen
+  if (showRestrictedIfNeeded()) return; // outside allowed hours -> restricted screen
   setPane('home');
   loadContentView();
   layoutViews();
-  return true;
 }
 
 // Show the "who is using this?" picker (toolbar avatar click).
@@ -811,9 +831,15 @@ export function getPlatformsForRenderer(): PlatformEntry[] {
   }));
 }
 
-// Summaries for the profile picker (id + avatar + name).
+// Summaries for the profile picker (id + avatar + name + whether a login
+// password is set — passwordless profiles are blocked at picker click).
 export function getProfilesForRenderer(): ProfileSummary[] {
-  return loadProfiles().profiles.map((p) => ({ id: p.id, name: p.name, avatarColor: p.avatarColor }));
+  return loadProfiles().profiles.map((p) => ({
+    id: p.id,
+    name: p.name,
+    avatarColor: p.avatarColor,
+    passwordSet: profileHasPassword(p),
+  }));
 }
 
 // Live screen-time snapshot for the toolbar banner / control panel.
