@@ -22,6 +22,15 @@
       <button type="button" class="admin-tab" data-tab="activity" aria-controls="tab-activity">Activity Log</button>
     </nav>
 
+    <!-- Pending "forgot password" requests from the picker -->
+    <div id="reset-strip" class="reset-strip" hidden>
+      <div class="reset-strip-head">
+        <span class="reset-strip-title">Pending password resets</span>
+        <button type="button" class="admin-btn admin-btn-sm" id="reset-dismiss-all-btn">Dismiss all</button>
+      </div>
+      <ul id="reset-requests-list" class="reset-requests-list"></ul>
+    </div>
+
     <main class="admin-body">
       <!-- Permitted platforms (per profile) -->
       <section id="tab-sites" class="admin-pane" aria-label="Permitted platforms">
@@ -109,6 +118,9 @@
             <option value="override">Overrides</option>
             <option value="restricted">Off-hours</option>
             <option value="wifi-connect">Wi-Fi</option>
+            <option value="auth-failed">Sign-in failures</option>
+            <option value="reset-request">Reset requests</option>
+            <option value="password-reset">Password resets</option>
             <option value="power">Power</option>
             <option value="home">Home</option>
             <option value="back">Back</option>
@@ -193,6 +205,14 @@
       <div class="modal-field">
         <label for="profile-name-input">Name</label>
         <input type="text" id="profile-name-input" autocomplete="off" spellcheck="false" placeholder="e.g. Child 1">
+      </div>
+      <div class="modal-field">
+        <label for="profile-password-input">Password <span id="profile-password-hint" class="field-hint"></span></label>
+        <input type="password" id="profile-password-input" autocomplete="new-password" spellcheck="false" placeholder="Login password">
+        <label class="modal-checkbox" id="profile-password-remove-wrap" hidden>
+          <input type="checkbox" id="profile-password-remove">
+          <span>Remove this password</span>
+        </label>
       </div>
       <div class="modal-field">
         <label for="profile-color-input">Avatar colour</label>

@@ -26,9 +26,19 @@
     dailyLimitMin: number;
     usageHours: { start: string; end: string }[];
     apps: PlatformEntry[];
+    // Opaque to the renderer: main hashes/verifies child passwords. Presence
+    // tells the console whether a password is currently set (edit-modal hint).
+    passwordHash?: string;
+    passwordSalt?: string;
   };
 
   type ProfilesFile = { profiles: Profile[] };
+
+  type ResetRequest = {
+    profileId: string;
+    profileName: string;
+    requestedAt: string;
+  };
 
   type ActivityEvent = {
     ts: string;
@@ -114,12 +124,20 @@
   const profileForm = document.getElementById('profile-form') as HTMLFormElement | null;
   const profileModalTitle = document.getElementById('profile-modal-title') as HTMLElement | null;
   const fProfileName = document.getElementById('profile-name-input') as HTMLInputElement | null;
+  const fProfilePassword = document.getElementById('profile-password-input') as HTMLInputElement | null;
+  const profilePasswordHint = document.getElementById('profile-password-hint') as HTMLElement | null;
+  const profilePasswordRemoveWrap = document.getElementById('profile-password-remove-wrap') as HTMLElement | null;
+  const fProfilePasswordRemove = document.getElementById('profile-password-remove') as HTMLInputElement | null;
   const fProfileColor = document.getElementById('profile-color-input') as HTMLInputElement | null;
   const fProfileLimit = document.getElementById('profile-limit-input') as HTMLInputElement | null;
   const usageHoursEditor = document.getElementById('usage-hours-editor') as HTMLElement | null;
   const addHourBtn = document.getElementById('add-hour-btn') as HTMLButtonElement | null;
   const profileError = document.getElementById('profile-error') as HTMLElement | null;
   const profileModalCancelBtn = document.getElementById('profile-modal-cancel-btn') as HTMLButtonElement | null;
+
+  const resetStrip = document.getElementById('reset-strip') as HTMLElement | null;
+  const resetRequestsList = document.getElementById('reset-requests-list') as HTMLElement | null;
+  const resetDismissAllBtn = document.getElementById('reset-dismiss-all-btn') as HTMLButtonElement | null;
 
   const tabPlanner = document.getElementById('tab-planner') as HTMLElement | null;
   const plannerProfileSelect = document.getElementById('planner-profile-select') as HTMLSelectElement | null;
@@ -139,6 +157,14 @@
   let editingIndex = -1;
   let editingProfileMode: 'add' | 'edit' = 'add';
   let editingUsageHours: { start: string; end: string }[] = [];
+
+  // Passwords typed in the profile modal are NOT part of the profiles payload
+  // (main hashes them, and hash/salt must only ever round-trip as stored). New
+  // passwords accumulate here, keyed by profileId ('' = clear), and are sent to
+  // PROFILE_SET_PASSWORD right after the profiles save succeeds.
+  const pendingPasswords = new Map<string, string>();
+
+  let resetRequests: ResetRequest[] = [];
 
   // Installed programs for the native-platform picker. The LIST loads fast
   // (start-menu walk) and icons stream in after; checkbox state lives here in a
@@ -393,6 +419,23 @@
     if (fProfileName) fProfileName.value = profile?.name ?? '';
     if (fProfileColor) fProfileColor.value = profile?.avatarColor ?? '#4285f4';
     if (fProfileLimit) fProfileLimit.value = String(profile?.dailyLimitMin ?? 0);
+    // Password state: every profile must have one, but the field is only
+    // required when ADDING. In edit mode a blank field keeps the current
+    // password; "Remove this password" clears it (which blocks the profile at
+    // the picker until a new one is set).
+    if (fProfilePassword) fProfilePassword.value = '';
+    if (fProfilePasswordRemove) fProfilePasswordRemove.checked = false;
+    const hasPassword = !!profile?.passwordHash;
+    if (profilePasswordHint) {
+      if (mode === 'add') {
+        profilePasswordHint.textContent = 'Required — the child signs in with this.';
+      } else if (hasPassword) {
+        profilePasswordHint.textContent = 'Password is set — leave blank to keep it.';
+      } else {
+        profilePasswordHint.textContent = 'No password set — this profile can’t sign in until one is set.';
+      }
+    }
+    if (profilePasswordRemoveWrap) profilePasswordRemoveWrap.hidden = mode !== 'edit' || !hasPassword;
     editingUsageHours = profile ? profile.usageHours.map((w) => ({ ...w })) : [];
     renderUsageHoursEditor();
     if (profileModal) profileModal.hidden = false;
@@ -404,6 +447,11 @@
     const name = (fProfileName?.value ?? '').trim();
     if (!name) {
       if (profileError) profileError.textContent = 'Name is required.';
+      return;
+    }
+    const password = (fProfilePassword?.value ?? '').trim();
+    if (editingProfileMode === 'add' && !password) {
+      if (profileError) profileError.textContent = 'A password is required for every profile.';
       return;
     }
     const color = fProfileColor?.value || '#4285f4';
@@ -421,8 +469,9 @@
       usageHours.push({ start, end });
     }
 
+    let profileId: string | null = null;
     if (editingProfileMode === 'add') {
-      profiles.push({
+      const profile: Profile = {
         id: 'p-' + Math.random().toString(36).slice(2, 10),
         name,
         avatarColor: color,
@@ -430,7 +479,9 @@
         dailyLimitMin,
         usageHours,
         apps: [],
-      });
+      };
+      profiles.push(profile);
+      profileId = profile.id;
     } else if (activeProfile()) {
       const profile = activeProfile()!;
       profile.name = name;
@@ -438,7 +489,19 @@
       profile.skinColor = color;
       profile.dailyLimitMin = dailyLimitMin;
       profile.usageHours = usageHours;
+      profileId = profile.id;
     }
+
+    // Queue the password change (applied by saveChanges right after the
+    // profiles save, hashed in main). Blank + not "remove" = keep current.
+    if (profileId) {
+      if (fProfilePasswordRemove?.checked) {
+        pendingPasswords.set(profileId, '');
+      } else if (password) {
+        pendingPasswords.set(profileId, password);
+      }
+    }
+
     renderProfileSelect();
     renderPlatforms();
     if (profileModal) profileModal.hidden = true;
@@ -894,6 +957,7 @@
     try {
       const result = await api.saveProfiles({ profiles });
       if (result.ok) {
+        await applyPendingPasswords();
         setStatus(status, `Saved ${profiles.length} profile(s). Changes applied live.`, 'success');
       } else {
         setStatus(status, result.error || 'Save failed.', 'error');
@@ -904,6 +968,117 @@
       setSaving(false);
     }
   }
+
+  // Send the passwords queued by the profile modal to main (which hashes them),
+  // then re-sync the in-memory profile list so its password-state markers match
+  // what was written. Dropped profiles' pending passwords are discarded. A
+  // successful set also clears any matching pending reset request in main.
+  async function applyPendingPasswords(): Promise<void> {
+    if (pendingPasswords.size === 0) return;
+    const liveIds = new Set(profiles.map((p) => p.id));
+    const entries = Array.from(pendingPasswords.entries()).filter(([id]) => liveIds.has(id));
+    pendingPasswords.clear();
+    for (const [id, password] of entries) {
+      try {
+        await api.setProfilePassword(id, password);
+      } catch {
+        // best-effort: a failed set shouldn't fail the whole save
+      }
+    }
+    try {
+      const file = await api.getProfiles();
+      profiles = file.profiles;
+    } catch {
+      return;
+    }
+    renderProfileSelect();
+    renderPlatforms();
+    await loadResetRequests();
+  }
+
+  // ---------- Pending password resets ----------
+
+  async function loadResetRequests(): Promise<void> {
+    try {
+      const requests = await api.getResetRequests();
+      resetRequests = Array.isArray(requests) ? requests : [];
+    } catch {
+      resetRequests = [];
+    }
+    renderResetStrip();
+  }
+
+  function renderResetStrip(): void {
+    if (!resetStrip || !resetRequestsList) return;
+    resetStrip.hidden = resetRequests.length === 0;
+    resetRequestsList.replaceChildren();
+    for (const req of resetRequests) {
+      const li = document.createElement('li');
+      li.className = 'reset-request-row';
+
+      const name = document.createElement('span');
+      name.className = 'reset-request-name';
+      name.textContent = req.profileName;
+
+      const time = document.createElement('span');
+      time.className = 'reset-request-time';
+      let timeLabel = req.requestedAt;
+      try {
+        const d = new Date(req.requestedAt);
+        timeLabel = `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
+      } catch {
+        // keep the raw timestamp
+      }
+      time.textContent = timeLabel;
+
+      const actions = document.createElement('span');
+      actions.className = 'reset-request-actions';
+
+      const setBtn = document.createElement('button');
+      setBtn.type = 'button';
+      setBtn.className = 'admin-btn admin-btn-sm';
+      setBtn.textContent = 'Set password';
+      const profile = profiles.find((p) => p.id === req.profileId);
+      setBtn.disabled = !profile;
+      setBtn.title = profile ? `Open ${profile.name}'s edit dialog to set a new password` : 'This profile no longer exists.';
+      setBtn.addEventListener('click', () => {
+        if (!profile) return;
+        editingProfileId = profile.id;
+        renderProfileSelect();
+        renderPlatforms();
+        openProfileModal('edit');
+      });
+
+      const dismissBtn = document.createElement('button');
+      dismissBtn.type = 'button';
+      dismissBtn.className = 'admin-btn admin-btn-sm admin-btn-danger';
+      dismissBtn.textContent = 'Dismiss';
+      dismissBtn.addEventListener('click', async () => {
+        try {
+          await api.clearResetRequests(req.profileId);
+        } catch {
+          // ignore
+        }
+        await loadResetRequests();
+      });
+
+      actions.appendChild(setBtn);
+      actions.appendChild(dismissBtn);
+      li.appendChild(name);
+      li.appendChild(time);
+      li.appendChild(actions);
+      resetRequestsList.appendChild(li);
+    }
+  }
+
+  resetDismissAllBtn?.addEventListener('click', async () => {
+    try {
+      await api.clearResetRequests();
+    } catch {
+      // ignore
+    }
+    await loadResetRequests();
+  });
 
   footerSaveBtns.forEach((b) => b?.addEventListener('click', saveChanges));
   [discardBtn, usageDiscardBtn, activityDiscardBtn].forEach((b) =>
@@ -1254,6 +1429,9 @@
     override: 'Override',
     restricted: 'Off-hours',
     'wifi-connect': 'Wi-Fi',
+    'auth-failed': 'Login',
+    'reset-request': 'Reset',
+    'password-reset': 'Password',
   };
 
   function renderActivity(): void {
@@ -1372,6 +1550,7 @@
     renderProfileSelect();
     renderPlatforms();
     renderDayLabel();
+    loadResetRequests().catch(() => {});
     loadActivityPage(true).catch(() => {
       if (activityList) {
         activityList.replaceChildren();
