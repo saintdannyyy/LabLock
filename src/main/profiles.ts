@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash, randomBytes, timingSafeEqual } from 'crypto';
 import type {
   Profile,
   ProfilesFile,
@@ -36,6 +36,82 @@ export function setActiveProfile(id: string | null): Profile | null {
   const found = loadProfiles().profiles.find((p) => p.id === id) ?? null;
   activeProfile = found;
   return found;
+}
+
+// ---------- Profile passwords (main-process only) ----------
+//
+// Child passwords are never stored in plaintext and never sent to a renderer:
+// the picker and admin console only ever hand a raw password to these IPC
+// handlers, which hash it here. SHA-256 with a per-profile random salt (16
+// bytes -> 32 hex chars) and a constant-time compare so profile auth can't leak
+// timing information about a wrong guess.
+
+function hashPassword(password: string, salt: string): string {
+  return createHash('sha256').update(`${salt}:${password}`).digest('hex');
+}
+
+// True when the profile has a login password configured (the picker blocks
+// profiles without one).
+export function profileHasPassword(profile: Profile): boolean {
+  return typeof profile.passwordHash === 'string' && typeof profile.passwordSalt === 'string';
+}
+
+// Constant-time comparison of a typed password against a profile's stored hash.
+// A profile without a password always returns false (it must never be unlocked
+// by password auth). Leading/trailing whitespace is stripped on BOTH sides of
+// the comparison (setProfilePassword trims too), so an accidental space doesn't
+// lock a child out.
+export function verifyProfilePassword(profile: Profile, password: string): boolean {
+  if (!profileHasPassword(profile)) return false;
+  const expected = Buffer.from(profile.passwordHash as string, 'hex');
+  const actual = Buffer.from(hashPassword(password.trim(), profile.passwordSalt as string), 'hex');
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+// Set (or clear, when password is empty) a profile's login password on disk.
+// Admin-gated callers use this AFTER a profiles save so the salted hash is
+// never part of the admin console's round-tripped payload.
+export function setProfilePassword(profileId: string, password: string): SaveResult {
+  const file = profilesPath();
+  let profilesFile: ProfilesFile;
+  try {
+    profilesFile = loadProfiles();
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+  const profile = profilesFile.profiles.find((p) => p.id === profileId);
+  if (!profile) return { ok: false, error: 'Profile not found.' };
+
+  const passwordTrimmed = typeof password === 'string' ? password.trim() : '';
+  if (passwordTrimmed === '') {
+    delete profile.passwordHash;
+    delete profile.passwordSalt;
+  } else {
+    profile.passwordSalt = randomBytes(16).toString('hex');
+    profile.passwordHash = hashPassword(passwordTrimmed, profile.passwordSalt);
+  }
+
+  const json = JSON.stringify(profilesFile, null, 2) + '\n';
+  const tmpPath = file + '.tmp';
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(tmpPath, json, 'utf-8');
+    fs.renameSync(tmpPath, file);
+  } catch (err) {
+    try {
+      fs.unlinkSync(tmpPath);
+    } catch {
+      // best-effort temp cleanup
+    }
+    return { ok: false, error: `Failed to write profiles config: ${(err as Error).message}` };
+  }
+
+  // Keep the in-memory active profile in sync when the password belongs to it.
+  if (activeProfile?.id === profileId) {
+    activeProfile.passwordHash = profile.passwordHash;
+    activeProfile.passwordSalt = profile.passwordSalt;
+  }
+  return { ok: true, path: file };
 }
 
 // The web-only subset of a profile's platforms, shaped for the whitelist
@@ -228,6 +304,22 @@ function validateProfile(entry: unknown, index: number): Profile {
     apps = p.apps.map((a, ai) => validatePlatform(a, name, ai));
   }
 
+  // Password fields round-trip through the admin console's save payload. They
+  // are opaque to the renderer, so validate structure only (both must be hex
+  // strings together; never a lone hash/salt, which would lock the profile
+  // behind an unrecoverable password).
+  let passwordHash: string | undefined;
+  let passwordSalt: string | undefined;
+  const hasHash = typeof p.passwordHash === 'string';
+  const hasSalt = typeof p.passwordSalt === 'string';
+  if (hasHash || hasSalt) {
+    if (!hasHash || !hasSalt || !/^[0-9a-f]+$/i.test(p.passwordHash as string) || !/^[0-9a-f]+$/i.test(p.passwordSalt as string)) {
+      throw new Error(`Profile "${name}" has a partial or malformed password record.`);
+    }
+    passwordHash = p.passwordHash as string;
+    passwordSalt = p.passwordSalt as string;
+  }
+
   return {
     id,
     name,
@@ -236,6 +328,7 @@ function validateProfile(entry: unknown, index: number): Profile {
     dailyLimitMin,
     usageHours,
     apps,
+    ...(passwordHash !== undefined ? { passwordHash, passwordSalt } : {}),
   };
 }
 
