@@ -18,6 +18,27 @@
       <p class="picker-subtitle">Who's using this workspace?</p>
     </header>
     <main id="profile-list" class="profile-list" role="list" aria-label="Choose a profile"></main>
+
+    <!-- Password login for the selected profile -->
+    <div id="login-panel" class="login-panel" hidden>
+      <div class="login-card">
+        <span id="login-avatar" class="login-avatar-wrap"></span>
+        <div id="login-name" class="login-name"></div>
+        <form id="login-form" class="login-form" novalidate>
+          <input type="password" id="login-password" placeholder="Password" autocomplete="off" spellcheck="false"
+            aria-label="Profile password">
+          <p id="login-error" class="login-error" aria-live="polite"></p>
+          <button type="submit" id="login-submit" class="login-btn login-btn-primary login-submit">Sign in</button>
+          <button type="button" id="login-forgot" class="login-forgot">Forgot password?</button>
+        </form>
+        <div id="login-nopassword" class="login-nopassword" hidden>
+          <p>No password is set for this profile.</p>
+          <p class="login-hint">Ask an administrator to set one before you can sign in.</p>
+        </div>
+        <p id="login-forgot-done" class="login-forgot-done" hidden>Request sent. An administrator will reset your password.</p>
+        <button type="button" id="login-cancel" class="login-btn login-cancel">Cancel</button>
+      </div>
+    </div>
   </div>
   <script src="picker.js"></script>
 </body>

@@ -50,6 +50,7 @@ html, body {
 }
 
 .profile-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -76,6 +77,17 @@ html, body {
 .profile-card:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* Password-state badge on each card: locked (set) vs unlocked (no password —
+   the card can't be signed into until an admin sets one). */
+.profile-lock {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.75;
 }
 
 .profile-avatar {
@@ -112,6 +124,145 @@ html, body {
   line-height: 20px;
 }
 
+/* ---------- Password login panel ---------- */
+
+.login-panel {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.login-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-8) var(--space-6);
+  width: 100%;
+  max-width: 340px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-2);
+  text-align: center;
+}
+
+.login-avatar-wrap {
+  display: flex;
+}
+
+.login-name {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 22px;
+  color: var(--color-text);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.login-form input {
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-input, var(--color-surface));
+  color: var(--color-text);
+  outline: none;
+}
+
+.login-form input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-faint, transparent);
+}
+
+.login-error {
+  min-height: 18px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-danger, #d93025);
+}
+
+.login-btn {
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.login-btn:hover {
+  background: var(--color-surface-hover, var(--color-border-faint, rgba(0, 0, 0, 0.04)));
+}
+
+.login-btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.login-btn-primary:hover {
+  background: var(--color-primary-strong, var(--color-primary));
+}
+
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.login-forgot {
+  align-self: center;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: var(--space-1);
+}
+
+.login-forgot:hover {
+  text-decoration: underline;
+}
+
+.login-nopassword p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text);
+}
+
+.login-nopassword .login-hint {
+  margin-top: var(--space-1);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.login-forgot-done {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-success, #188038);
+}
+
+.login-cancel {
+  align-self: center;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .picker-container {
@@ -124,5 +275,8 @@ html, body {
     width: 72px;
     height: 72px;
     font-size: 32px;
+  }
+  .login-card {
+    padding: var(--space-6) var(--space-5) var(--space-5);
   }
 }
