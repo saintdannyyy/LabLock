@@ -19,12 +19,12 @@ import { spawn } from 'child_process';
 import type { SaveResult, ActivityPage, ActivityEvent, VolumeRequest, ProfilesFile, PlatformEntry, ScreenTimeStatus, UsageSnapshot, PlannerFile, WifiScanResult, WifiActionResult, WifiConnectRequest, InstalledApp, Theme } from '../shared/types';
 
 // electron-builder strips `productName` from the packaged package.json inside
-// app.asar, leaving only the lowercase npm `name` ("halisy-workstudio").
+// app.asar, leaving only the lowercase npm `name` ("hewstudio").
 // Electron uses that name for the per-user data folder, so without this the
-// installed app writes to %APPDATA%\halisy-workstudio instead of
-// %APPDATA%\HALISY WORKStudio. Pin the branded name early so
+// installed app writes to %APPDATA%\hewstudio instead of
+// %APPDATA%\HEWStudio. Pin the branded name early so
 // app.getPath('userData') (activity log, profiles, session data) uses it.
-app.setName('HALISY WORKStudio');
+app.setName('HEWStudio');
 
 const ESCAPE_PIPE_NAME = 'lockdown-escape';
 const ADMIN_PASSWORD = process.env.LOCKDOWN_ADMIN_PASSWORD || 'admin123'; // default for dev; override in production
@@ -323,7 +323,7 @@ app.whenReady().then(() => {
   } catch (err) {
     // Fail loud: never silently start with a broken profiles config.
     dialog.showErrorBox(
-      'HALISY WORKStudio — Configuration Error',
+      'HEWStudio — Configuration Error',
       `The profiles configuration could not be loaded:\n\n${(err as Error).message}\n\n` +
         'The app will now exit. Fix the profiles.json config and restart.',
     );
@@ -543,7 +543,7 @@ app.whenReady().then(() => {
   });
 
   ipcMain.on(IPC.ADMIN_CLOSE, () => {
-    // Done button: return to the kiosk (HALISY WORKStudio IS the shell in production),
+    // Done button: return to the kiosk (HEWStudio IS the shell in production),
     // and drop admin privileges so privileged IPC is gated again.
     adminAuthenticated = false;
     closeEscapeWindow();

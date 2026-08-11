@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Registers HALISY WORKStudio to launch automatically at Windows logon.
+Registers HEWStudio to launch automatically at Windows logon.
 
 .DESCRIPTION
 Default method (no switches): a Scheduled Task that runs the app when the
@@ -31,7 +31,7 @@ install location, then Program Files, then release/win-unpacked relative to
 this repo. Pass -AppExe explicitly for any other location.
 
 .PARAMETER AppExe
-Full path to the app executable (HalisyWorkStudio.exe). Auto-detected if omitted.
+Full path to the app executable (HewStudio.exe). Auto-detected if omitted.
 
 .PARAMETER AllUsers
 Register the Scheduled Task to run at logon of any user (requires admin).
@@ -44,7 +44,7 @@ Register the Scheduled Task with RunLevel Highest (app launches as
 administrator; requires an elevated shell and an admin logon account).
 
 .EXAMPLE
-.\register-startup.ps1 -AppExe "C:\Program Files\HALISY WORKStudio\HalisyWorkStudio.exe"
+.\register-startup.ps1 -AppExe "C:\Program Files\HEWStudio\HewStudio.exe"
 
 .EXAMPLE
 .\register-startup.ps1 -Elevated
@@ -62,8 +62,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$productName = "HALISY WORKStudio"
-$taskName = "HALISY WORKStudio"
+$productName = "HEWStudio"
+$taskName = "HEWStudio"
 $runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
 
 function Test-Elevated {
@@ -76,13 +76,13 @@ function Test-Elevated {
 # --- Resolve the app executable ------------------------------------------
 if (-not $AppExe) {
   $candidates = @(
-    (Join-Path $env:LOCALAPPDATA "Programs\HALISY WORKStudio\HalisyWorkStudio.exe"),
-    (Join-Path ${env:ProgramFiles} "HALISY WORKStudio\HalisyWorkStudio.exe"),
-    (Join-Path $PSScriptRoot "..\release\win-unpacked\HalisyWorkStudio.exe")
+    (Join-Path $env:LOCALAPPDATA "Programs\HEWStudio\HewStudio.exe"),
+    (Join-Path ${env:ProgramFiles} "HEWStudio\HewStudio.exe"),
+    (Join-Path $PSScriptRoot "..\release\win-unpacked\HewStudio.exe")
   )
   $AppExe = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
   if (-not $AppExe) {
-    throw "Could not locate 'HalisyWorkStudio.exe'. Pass -AppExe with the full path."
+    throw "Could not locate 'HewStudio.exe'. Pass -AppExe with the full path."
   }
 }
 if (-not (Test-Path -LiteralPath $AppExe)) {
@@ -132,13 +132,13 @@ $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
 if ($Elevated) {
   $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Highest
   Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal `
-    -Description "Launches HALISY WORKStudio at logon of $user (elevated)" -Force | Out-Null
+    -Description "Launches HEWStudio at logon of $user (elevated)" -Force | Out-Null
   Write-Host "[Scheduled Task] Created '$taskName' to run at logon of $user (current user)."
   Write-Host "[Scheduled Task] RunLevel: Highest -- the app launches elevated (Wi-Fi panel works)."
   Write-Host "[Scheduled Task] Note: the logon account must be an administrator for Highest to take effect."
 } else {
   Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger `
-    -Description "Launches HALISY WORKStudio at logon of $user" -Force | Out-Null
+    -Description "Launches HEWStudio at logon of $user" -Force | Out-Null
   Write-Host "[Scheduled Task] Created '$taskName' to run at logon of $user (current user)."
   Write-Host "[Scheduled Task] RunLevel: Limited -- the app itself does not need admin rights at runtime."
 }

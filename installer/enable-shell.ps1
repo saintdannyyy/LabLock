@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Sets HALISY WORKStudio as the Windows shell (replaces explorer.exe).
+    Sets HEWStudio as the Windows shell (replaces explorer.exe).
 
 .DESCRIPTION
     Sets HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell to this app's
@@ -9,21 +9,21 @@
 
 .NOTES
     * This replaces the Windows shell — no explorer.exe, no taskbar, no Start menu,
-      no desktop icons. HALISY WORKStudio becomes the shell and launches at logon.
+      no desktop icons. HEWStudio becomes the shell and launches at logon.
     * A tested rollback script (disable-shell.ps1) restores the original shell.
     * Test the rollback in a disposable session/VM before deploying to a lab machine.
     * If the machine becomes unbootable to a normal desktop, boot to Safe Mode
       (Shift+Restart → Troubleshoot → Advanced Options → Startup Settings → 4)
       and run disable-shell.ps1 from an elevated command prompt.
-    * The rollback file is stored at $env:ProgramData\HALISY WORKStudio\winlogon-shell.backup.txt
+    * The rollback file is stored at $env:ProgramData\HEWStudio\winlogon-shell.backup.txt
 
 .PARAMETER AppExe
-    Full path to the HALISY WORKStudio executable. If omitted, the script
+    Full path to the HEWStudio executable. If omitted, the script
     searches common install locations (NSIS per-user, Program Files, release/win-unpacked).
 
 .EXAMPLE
     # From elevated PowerShell
-    .\enable-shell.ps1 -AppExe "C:\Program Files\HALISY WORKStudio\HalisyWorkStudio.exe"
+    .\enable-shell.ps1 -AppExe "C:\Program Files\HEWStudio\HewStudio.exe"
 
 .EXAMPLE
     # Auto-detect from common locations
@@ -50,12 +50,12 @@ if (-not (Test-Admin)) {
 
 function Find-AppExe {
     $candidates = @(
-        # NSIS per-user install (default install dir: %LOCALAPPDATA%\Programs\HALISY WORKStudio)
-        Join-Path $env:LOCALAPPDATA 'Programs\HALISY WORKStudio\HalisyWorkStudio.exe'
+        # NSIS per-user install (default install dir: %LOCALAPPDATA%\Programs\HEWStudio)
+        Join-Path $env:LOCALAPPDATA 'Programs\HEWStudio\HewStudio.exe'
         # System-wide NSIS install
-        Join-Path $env:ProgramFiles 'HALISY WORKStudio\HalisyWorkStudio.exe'
+        Join-Path $env:ProgramFiles 'HEWStudio\HewStudio.exe'
         # Unpacked build output
-        Join-Path $PSScriptRoot '..\release\win-unpacked\HalisyWorkStudio.exe'
+        Join-Path $PSScriptRoot '..\release\win-unpacked\HewStudio.exe'
     )
     foreach ($c in $candidates) {
         if (Test-Path -LiteralPath $c) { return $c }
@@ -66,7 +66,7 @@ function Find-AppExe {
 if (-not $AppExe) {
     $AppExe = Find-AppExe
     if (-not $AppExe) {
-        Write-Error "Could not locate HalisyWorkStudio.exe. Pass -AppExe explicitly."
+        Write-Error "Could not locate HewStudio.exe. Pass -AppExe explicitly."
         exit 1
     }
     Write-Host "Auto-detected app: $AppExe"
@@ -85,7 +85,7 @@ if (-not (Test-Admin)) {
 
 $winlogonPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon'
 $valueName = 'Shell'
-$backupDir = Join-Path $env:ProgramData 'HALISY WORKStudio'
+$backupDir = Join-Path $env:ProgramData 'HEWStudio'
 $backupFile = Join-Path $backupDir 'winlogon-shell.backup.txt'
 
 # 1. Backup current Shell value (or default to explorer.exe)

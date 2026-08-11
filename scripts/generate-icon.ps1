@@ -1,4 +1,4 @@
-# Generates the HALISY WORKStudio app icon:
+# Generates the HEWStudio app icon:
 #   build/icon.png  - 512x512 master
 #   build/icon.ico  - multi-size (256/128/64/48/32/24/16), PNG-compressed entries
 #

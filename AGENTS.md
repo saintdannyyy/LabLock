@@ -1,4 +1,4 @@
-# HALISY WORKStudio — Agent Guide
+# HEWStudio — Agent Guide
 
 ## Project overview
 Hand-built kiosk browser for school lab PCs (Win10/11 Pro/Home, no Enterprise licensing). Shows a whitelisted-site grid; blocks all other navigation. Five phases:
@@ -86,7 +86,7 @@ bin/watchdog/Watchdog.exe       # committed binary (extraResources)
 - **DisableTaskMgr**: `installer/disable-taskmgr.ps1` / `enable-taskmgr.ps1` set HKLM `DisableTaskMgr=1` (HKCU Policies ACL protected on Win11).
 
 ## Phase 4 additions
-- **Admin escape hatch + admin console**: `Ctrl+Alt+Shift+F12` → InputHook signals via named pipe → main process shows a password dialog → correct password morphs that same full-screen window into the **admin console** (never quits the app — HALISY WORKStudio is the shell). Two tabs:
+- **Admin escape hatch + admin console**: `Ctrl+Alt+Shift+F12` → InputHook signals via named pipe → main process shows a password dialog → correct password morphs that same full-screen window into the **admin console** (never quits the app — HEWStudio is the shell). Two tabs:
   - **Sites**: "Permitted platforms" manager per profile — add/edit/remove web platforms (name, URL, allowedHosts/embedHosts) and grant native programs by picking them from the machine's installed apps (`src/main/apps.ts`); changes go through the profile save path (`<userData>/profiles.json`), then re-`loadWhitelist()`, `updateWhitelist()`, and `notifyWhitelistRefreshed()` so the running kiosk applies changes **live** (no restart).
   - **Activity**: append-only JSONL log (`<userData>/history.jsonl`, sync appends, fire-and-forget) — navigation, blocked attempts, home/back, power, escape/auth, whitelist saves, app start/quit; paged newest-first, searchable, admin-clearable.
   - **Auth gating**: `adminAuthenticated` flag set only on correct password; `SAVE_WHITELIST`/`ACTIVITY_GET`/`ACTIVITY_CLEAR` refuse without it; flag drops on console close/"Done" (`ADMIN_CLOSE`) and window `closed`. Password via `LOCKDOWN_ADMIN_PASSWORD` env (default `admin123`).

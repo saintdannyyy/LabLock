@@ -1,4 +1,4 @@
-# HALISY WORKStudio — Locked-down Kiosk Workspace
+# HEWStudio — Locked-down Kiosk Workspace
 
 A hand-built kiosk workspace for children's computers running standard Windows
 10/11 Pro/Home (no Enterprise/Education licensing, so no Shell Launcher /
@@ -46,7 +46,7 @@ navigation to anything else.
     whitelist saves, screen-time events, app lifecycle) at
     `<userData>/history.jsonl`. Paged newest-first, searchable by kind/text,
     day-navigable (‹/›/Today per local day), cleared only by an admin.
-    "Done" closes the console and returns to the kiosk — HALISY WORKStudio is
+    "Done" closes the console and returns to the kiosk — HEWStudio is
     the shell, so the app **never quits** from the console. Privileged IPC
     (whitelist save, planner read/write, history read/clear) is password-gated
     in the main process.
@@ -118,7 +118,7 @@ From an elevated PowerShell on each PC:
 # Shell replacement — the app becomes the login shell and starts at every
 # logon automatically (makes startup registration redundant). Prefer this for
 # the final posture; test the rollback in a VM first.
-.\installer\enable-shell.ps1 -AppExe "C:\Program Files\HALISY WORKStudio\HalisyWorkStudio.exe"
+.\installer\enable-shell.ps1 -AppExe "C:\Program Files\HEWStudio\HewStudio.exe"
 
 # Blocks Task Manager for everyone (needed either way)
 .\installer\disable-taskmgr.ps1
@@ -278,8 +278,8 @@ to drift out of sync.
 
 ### Toolbar UI
 
-The toolbar (`src/renderer/toolbar/`) is laid out as: brand ("HALISY
-WORKStudio") + site tabs on the left, Back + Home pill centered, and the control
+The toolbar (`src/renderer/toolbar/`) is laid out as: brand ("HEWStudio")
++ site tabs on the left, Back + Home pill centered, and the control
 panel status cluster on the right (Wi-Fi icon, battery, clock).
 
 - **Back** — a _universal_ back button, enabled whenever any pane can move
@@ -403,7 +403,7 @@ Run `npm start`, then walk through:
    blocked screen with no navigation.
 4. **Iframes** — an iframe pointed at a non-whitelisted host inside an
    otherwise-whitelisted page is blocked.
-5. **Toolbar** — brand shows "HALISY WORKStudio"; Back is disabled on the home
+5. **Toolbar** — brand shows "HEWStudio"; Back is disabled on the home
    grid when there's nothing to return to, and enabled on any active site and
    on the blocked screen; on a site it steps back through natural browser
    history, and once that's exhausted it returns to the last place you were
