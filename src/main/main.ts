@@ -1,10 +1,11 @@
 import 'dotenv/config';
 import { app, dialog, BrowserWindow, Menu, ipcMain, powerMonitor, net } from 'electron';
-import { loadProfiles, saveProfiles, setActiveProfile, getActiveProfile } from './profiles';
-import { createMainWindow, getWhitelistForRenderer, getPlatformsForRenderer, getProfilesForRenderer, selectProfile, showPicker, launchApp, navigateToSite, goHome, goBack, shutdownComputer, shutdownImmediately, restartComputer, refreshActiveProfile, notifyWhitelistRefreshed, notifyPlannerChanged, KIOSK, setAllowClose, setPanelOpen, setBannerOpen, sendToToolbar, onToolbarReady, getScreenTimeStatus, pauseScreenTimeForAdmin, resumeScreenTimeForAdmin, getUsageForAdmin, enforceUsageHours, broadcastTheme } from './window';
+import { loadProfiles, saveProfiles, setProfilePassword, getActiveProfile } from './profiles';
+import { createMainWindow, getWhitelistForRenderer, getPlatformsForRenderer, getProfilesForRenderer, authProfile, showPicker, launchApp, navigateToSite, goHome, goBack, shutdownComputer, shutdownImmediately, restartComputer, refreshActiveProfile, notifyWhitelistRefreshed, notifyPlannerChanged, KIOSK, setAllowClose, setPanelOpen, setBannerOpen, sendToToolbar, onToolbarReady, getScreenTimeStatus, pauseScreenTimeForAdmin, resumeScreenTimeForAdmin, getUsageForAdmin, enforceUsageHours, broadcastTheme } from './window';
 import { setHandlers as setScreenTimeHandlers, grantOverride as grantScreenTimeOverride } from './screen-time';
 import { detach as detachUsage } from './usage';
 import { loadPlanner, savePlanner, validatePlanner } from './planner';
+import { requestReset, getPendingRequests, clearRequestForProfile, clearAllRequests } from './reset-requests';
 import { registerIpcHandlers } from './ipc';
 import { appendActivity, readActivity, clearActivity } from './history';
 import { startInputHook, stopInputHook } from './input-hook';
@@ -16,7 +17,7 @@ import { preloadFile, rendererFile, watchdogExePath } from './paths';
 import { IPC } from '../shared/types';
 import { createServer } from 'net';
 import { spawn } from 'child_process';
-import type { SaveResult, ActivityPage, ActivityEvent, VolumeRequest, ProfilesFile, PlatformEntry, ScreenTimeStatus, UsageSnapshot, PlannerFile, WifiScanResult, WifiActionResult, WifiConnectRequest, InstalledApp, Theme } from '../shared/types';
+import type { SaveResult, ActivityPage, ActivityEvent, VolumeRequest, ProfilesFile, PlatformEntry, ScreenTimeStatus, UsageSnapshot, PlannerFile, WifiScanResult, WifiActionResult, WifiConnectRequest, InstalledApp, Theme, ResetRequest } from '../shared/types';
 
 // electron-builder strips `productName` from the packaged package.json inside
 // app.asar, leaving only the lowercase npm `name` ("hewstudio").
@@ -317,9 +318,8 @@ app.whenReady().then(() => {
     Menu.setApplicationMenu(null);
   }
 
-  let profilesFile: ProfilesFile;
   try {
-    profilesFile = loadProfiles();
+    loadProfiles();
   } catch (err) {
     // Fail loud: never silently start with a broken profiles config.
     dialog.showErrorBox(
@@ -331,12 +331,8 @@ app.whenReady().then(() => {
     return;
   }
 
-  // Boot straight into the grid when there's exactly one profile; otherwise
-  // show the "who is using this?" picker first.
-  if (profilesFile.profiles.length === 1) {
-    setActiveProfile(profilesFile.profiles[0].id);
-  }
-
+  // No profile is auto-selected at boot: every account now requires a password,
+  // so the kiosk always lands on the "who is using this?" picker.
   const mainWindow = createMainWindow();
 
   if (KIOSK) {
@@ -358,7 +354,7 @@ app.whenReady().then(() => {
     getWhitelistForRenderer,
     getPlatformsForRenderer,
     getProfilesForRenderer,
-    selectProfile,
+    authProfile,
     showPicker,
     launchApp,
     getScreenTimeStatus,
@@ -434,6 +430,48 @@ app.whenReady().then(() => {
       refreshActiveProfile();
       notifyWhitelistRefreshed();
       logActivity('whitelist-change', `Profiles saved — ${describePlatformChanges(before, after)}`);
+    }
+    return result;
+  });
+
+  // "Forgot password" from the picker. Deliberately UNGATED: it only records a
+  // request (profileId + name, no password material) for the admin to act on --
+  // gating it would break the lockout-recovery path this feature exists for.
+  ipcMain.on(IPC.PASSWORD_RESET_REQUEST, (_event, profileId: unknown) => {
+    const id = typeof profileId === 'string' && profileId.trim() !== '' ? profileId.trim() : '';
+    if (!id) return;
+    const profile = loadProfiles().profiles.find((p) => p.id === id);
+    requestReset(id, profile?.name ?? id);
+    appendActivity({ ts: new Date().toISOString(), kind: 'reset-request', detail: `Password reset requested for "${profile?.name ?? id}"`, profile: id });
+  });
+
+  // Pending password-reset requests + granting a new profile password (admin
+  // console). Both are admin-gated like the other console IPC.
+  ipcMain.handle(IPC.RESET_REQUESTS_GET, (): ResetRequest[] => {
+    if (!adminAuthenticated) return [];
+    return getPendingRequests();
+  });
+
+  ipcMain.handle(IPC.RESET_REQUESTS_CLEAR, (_event, profileId: unknown) => {
+    if (!adminAuthenticated) return { ok: false, error: 'Admin authentication required.' };
+    if (typeof profileId === 'string' && profileId !== '') {
+      clearRequestForProfile(profileId);
+    } else {
+      clearAllRequests();
+    }
+    return { ok: true };
+  });
+
+  ipcMain.handle(IPC.PROFILE_SET_PASSWORD, (_event, profileId: unknown, password: unknown): SaveResult => {
+    if (!adminAuthenticated) return { ok: false, error: 'Admin authentication required.' };
+    const id = typeof profileId === 'string' ? profileId : '';
+    const pass = typeof password === 'string' ? password : '';
+    const result = setProfilePassword(id, pass);
+    if (result.ok) {
+      const name = loadProfiles().profiles.find((p) => p.id === id)?.name ?? id;
+      clearRequestForProfile(id);
+      logActivity('password-reset', pass === '' ? `Password cleared for "${name}"` : `Password set/reset for "${name}"`);
+      notifyWhitelistRefreshed();
     }
     return result;
   });
