@@ -19,9 +19,18 @@ html, body {
   display: block;
 }
 
+.spinner .track {
+  stroke: rgba(11, 87, 208, 0.18);
+}
+
 .spinner .arc {
+  stroke: var(--color-primary);
   transform-origin: 50% 50%;
   animation: spin 900ms linear infinite;
+}
+
+:root[data-theme='dark'] .spinner .track {
+  stroke: rgba(138, 180, 248, 0.2);
 }
 
 @keyframes spin {

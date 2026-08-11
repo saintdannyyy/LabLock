@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LabLock — Design tokens (inspired by subcutai.vercel.app + workspace.google)
+   HALISY WORKStudio — Design tokens (inspired by subcutai.vercel.app + workspace.google)
    - DM Sans typeface (bundled locally, offline)
    - GM3 blue primary (#0b57d0), pill buttons, generous rounding
    - Bold black headings, white surfaces, soft card borders/shadows
@@ -36,6 +36,10 @@
   --color-surface-variant: #f1f3f4;
   --color-border: rgba(0, 0, 0, 0.10);
   --color-border-strong: rgba(0, 0, 0, 0.18);
+
+  /* Aliases (planner/restricted pages predate --color-background) */
+  --color-bg: #ffffff;
+  --font-sans: 'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
 
   /* Pastel section tints (subcutai) */
   --color-tint-lavender: #f2effa;
@@ -95,6 +99,56 @@
   --duration-short: 150ms;
   --duration-medium: 260ms;
   --duration-long: 400ms;
+}
+
+/* ==========================================================================
+   Dark theme — the main process persists the choice in <userData>/settings.json
+   and every renderer mirrors it onto <html data-theme>. Same token names, dark
+   values, so pages that only use the variables need no per-page dark rules.
+   Applied via :root[data-theme='dark'] (the attribute lives on <html>).
+   ========================================================================== */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Brand / accent — lighter GM3 blue for contrast on dark surfaces */
+  --color-primary: #8ab4f8;
+  --color-primary-hover: #aecbfa;
+  --color-primary-active: #c3d9fb;
+  --color-on-primary: #062e6f;
+  --color-primary-tint: rgba(138, 180, 248, 0.16);
+
+  /* Text */
+  --color-text: #e8eaed;
+  --color-text-secondary: #9aa0a6;
+  --color-text-tertiary: #8e959b;
+
+  /* Surfaces */
+  --color-background: #1f1f1f;
+  --color-surface: #2d2e31;
+  --color-surface-hover: #38393c;
+  --color-surface-variant: #35363a;
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-border-strong: rgba(255, 255, 255, 0.22);
+
+  /* Aliases (planner/restricted pages) — follow the dark background */
+  --color-bg: #1f1f1f;
+  --font-sans: 'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  /* Pastel section tints (subcutai) — muted for dark */
+  --color-tint-lavender: #332f3d;
+  --color-tint-snow: #2f343d;
+  --color-tint-ice: #2a3345;
+
+  /* States / error */
+  --color-error: #f28b82;
+  --color-error-bg: #3c2a28;
+  --color-error-tint: #f28b82;
+  --color-focus-ring: rgba(138, 180, 248, 0.35);
+
+  /* Elevation — deeper, darker shadows on dark surfaces */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.45), 0 6px 24px -8px rgba(0, 0, 0, 0.55);
+  --shadow-3: 0 12px 40px -12px rgba(0, 0, 0, 0.7);
 }
 
 /* ==========================================================================

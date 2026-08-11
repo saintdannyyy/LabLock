@@ -17,3 +17,11 @@ if (hostEl) {
 document.getElementById('home-btn')?.addEventListener('click', () => {
   window.lockdown.goHome();
 });
+
+// Mirror the app-wide theme (light/dark) off the main process.
+window.lockdown.getTheme?.().then((theme) => {
+  document.documentElement.dataset.theme = theme;
+}).catch(() => {});
+window.lockdown.onThemeChanged?.((theme) => {
+  document.documentElement.dataset.theme = theme;
+});
