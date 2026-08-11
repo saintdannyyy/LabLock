@@ -1,6 +1,6 @@
 # Installer scripts
 
-OS-level integration scripts for **LabLock**.
+OS-level integration scripts for **HALISY WORKStudio**.
 
 ## Phase 2 — Launch at startup
 
@@ -14,14 +14,14 @@ Two scripts manage automatic launch at Windows logon:
 ```
 # Default: Scheduled Task that runs the app at the current user's logon.
 # No admin rights required.
-.\register-startup.ps1 -AppExe "C:\path\to\LabLock.exe"
+.\register-startup.ps1 -AppExe "C:\path\to\HalisyWorkStudio.exe"
 
 # Alternative: HKCU Run registry key (per-user, no admin).
-.\register-startup.ps1 -UseRunKey -AppExe "C:\path\to\LabLock.exe"
+.\register-startup.ps1 -UseRunKey -AppExe "C:\path\to\HalisyWorkStudio.exe"
 
 # Optional: run at ANY user's logon. Requires an elevated (Run as
 # Administrator) shell.
-.\register-startup.ps1 -AllUsers -AppExe "C:\path\to\LabLock.exe"
+.\register-startup.ps1 -AllUsers -AppExe "C:\path\to\HalisyWorkStudio.exe"
 ```
 
 `-AppExe` can be omitted; the script then searches common install locations
@@ -53,17 +53,17 @@ final posture.
 
 ### Shell replacement
 
-Two scripts replace the Windows shell (`explorer.exe`) with LabLock:
+Two scripts replace the Windows shell (`explorer.exe`) with HALISY WORKStudio:
 
-- `enable-shell.ps1` — sets `HKLM\...\Winlogon\Shell` to LabLock.exe, backs up original value
+- `enable-shell.ps1` — sets `HKLM\...\Winlogon\Shell` to HalisyWorkStudio.exe, backs up original value
 - `disable-shell.ps1` — restores the original shell from backup
 
 **Both require an elevated (Run as Administrator) PowerShell session.**
 
 ```
 # Must run from elevated shell (Right-click PowerShell → Run as Administrator)
-.\enable-shell.ps1 -AppExe "C:\Program Files\LabLock\LabLock.exe"
-# Log off / reboot → LabLock launches as shell (no explorer, no taskbar)
+.\enable-shell.ps1 -AppExe "C:\Program Files\HALISY WORKStudio\HalisyWorkStudio.exe"
+# Log off / reboot → HALISY WORKStudio launches as shell (no explorer, no taskbar)
 
 # To rollback (from Safe Mode if needed):
 .\disable-shell.ps1

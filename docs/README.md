@@ -1,9 +1,9 @@
-# Lockdown Kiosk Browser (LabLock)
+# HALISY WORKStudio — Locked-down Kiosk Workspace
 
-A hand-built kiosk browser for school computer labs running standard Windows
+A hand-built kiosk workspace for children's computers running standard Windows
 10/11 Pro/Home (no Enterprise/Education licensing, so no Shell Launcher /
-Assigned Access). Shows a home grid of whitelisted sites; blocks navigation
-to anything else.
+Assigned Access). Shows a home grid of permitted apps and web platforms; blocks
+navigation to anything else.
 
 ## Features
 
@@ -30,17 +30,49 @@ to anything else.
   admin; the HKCU Policies ACL is protected on Win11).
 - **Admin console** — `Ctrl+Alt+Shift+F12` opens a password prompt (default
   `admin123`, override via `LOCKDOWN_ADMIN_PASSWORD`). A correct password
-  morphs the dialog into a full-screen admin console with two tabs:
-  - **Sites** — whitelist manager: add/edit/remove sites (name, URL,
-    allowedHosts). Saves atomically to `config/whitelist.json` and applies
-    **live** to the running kiosk with no restart.
+  morphs the dialog into a full-screen admin console with four tabs:
+  - **Sites** — "Permitted platforms" manager per profile: add/edit/remove web
+    platforms (name, URL, allowedHosts/embedHosts) and grant **native programs**
+    by picking them from the machine's installed apps (Start Menu) — no exe
+    paths are ever typed, so non-technical staff can use it. Saves atomically
+    to `<userData>/profiles.json` and applies **live** to the running kiosk
+    with no restart.
+  - **Usage** — per-day, per-profile screen-time totals.
+  - **Planner** — per-child planner: calendar events (date + title), a weekly
+    timetable (per-day period/subject rows), and checkable to-dos. Saved to
+    `<userData>/planner-<profileId>.json` (one file per profile).
   - **Activity** — history viewer: an append-only JSONL log of every user
     movement (navigation, blocked attempts, home/back, power, escape/auth,
-    whitelist saves, app lifecycle) at `<userData>/history.jsonl`. Paged
-    newest-first, searchable by kind/text, cleared only by an admin.
-    "Done" closes the console and returns to the kiosk — LabLock is the shell,
-    so the app **never quits** from the console. Privileged IPC (whitelist
-    save, history read/clear) is password-gated in the main process.
+    whitelist saves, screen-time events, app lifecycle) at
+    `<userData>/history.jsonl`. Paged newest-first, searchable by kind/text,
+    day-navigable (‹/›/Today per local day), cleared only by an admin.
+    "Done" closes the console and returns to the kiosk — HALISY WORKStudio is
+    the shell, so the app **never quits** from the console. Privileged IPC
+    (whitelist save, planner read/write, history read/clear) is password-gated
+    in the main process.
+- **Per-child profiles** — `<userData>/profiles.json` defines children with an
+  avatar, platform membership, a daily screen-time limit (minutes, 0 =
+  unlimited) and allowed usage hours (per-weekday `{ day, start, end }`). One
+  profile is active at a time; the boot-time picker (shown whenever there are
+  2+ profiles) or the toolbar chip switches it.
+- **Screen-time limits + usage hours** — a per-second ticker tracks each
+  profile's used time against its daily limit (`<userData>/screen-time-<profileId>.json`,
+  resets daily). Reaching the limit shows a countdown banner and shuts the
+  workspace down in 60s unless an admin extends it (`Extend time` → password).
+  Outside the profile's allowed hours the content switches to an "off-hours"
+  screen until the next allowed window.
+- **Planner (child view)** — the toolbar **Plan** button opens the active
+  profile's planner: today's events, today's timetable periods, and an
+  interactive to-do list. Events/timetable are admin-authored (read-only for
+  the child); to-dos can be checked off, added and removed by the child and
+  save straight back to their own planner file (scoped to the active profile).
+- **Wi-Fi control** — clicking the Wi-Fi chip in the toolbar opens its own
+  floating **Wi-Fi panel** (network list, connect / forget, rescan), separate
+  from the control panel. All over `netsh wlan`; ungated like the volume
+  slider, so it only works when the kiosk runs elevated — as a standard child
+  user, scans and connects hit error 5 / Location consent and the panel shows a
+  friendly explanation with the underlying netsh detail (never truncated).
+  Successful connects/forgets land in the activity log.
 - **Watchdog** — C# `bin/watchdog/Watchdog.exe` monitors the Electron +
   InputHook PIDs and restarts Electron on unexpected exit; a clean shutdown
   (exit 0) is respected.
@@ -86,7 +118,7 @@ From an elevated PowerShell on each PC:
 # Shell replacement — the app becomes the login shell and starts at every
 # logon automatically (makes startup registration redundant). Prefer this for
 # the final posture; test the rollback in a VM first.
-.\installer\enable-shell.ps1 -AppExe "C:\Program Files\LabLock\LabLock.exe"
+.\installer\enable-shell.ps1 -AppExe "C:\Program Files\HALISY WORKStudio\HalisyWorkStudio.exe"
 
 # Blocks Task Manager for everyone (needed either way)
 .\installer\disable-taskmgr.ps1
@@ -246,8 +278,8 @@ to drift out of sync.
 
 ### Toolbar UI
 
-The toolbar (`src/renderer/toolbar/`) is laid out as: brand ("Halisy
-Lablock") + site tabs on the left, Back + Home pill centered, and the control
+The toolbar (`src/renderer/toolbar/`) is laid out as: brand ("HALISY
+WORKStudio") + site tabs on the left, Back + Home pill centered, and the control
 panel status cluster on the right (Wi-Fi icon, battery, clock).
 
 - **Back** — a _universal_ back button, enabled whenever any pane can move
@@ -267,8 +299,9 @@ panel status cluster on the right (Wi-Fi icon, battery, clock).
   letter-chip fallback; many sites overflow-scroll horizontally.
 - **Control panel** — macOS-style status cluster at the top right. The clock is
   always visible (renderer `setInterval`, updates every second); the Wi-Fi and
-  battery chips refresh every 60s. Clicking the cluster opens a dropdown
-  (clicking outside or pressing Escape closes it):
+  battery chips refresh every 60s. The **Wi-Fi chip** opens the dedicated
+  Wi-Fi panel (see above); the battery/clock chips open the control panel
+  dropdown (clicking outside or pressing Escape closes either):
   - **Time/date** header (long date).
   - **Network** — connected network name (SSID), Wi-Fi vs Ethernet, link speed,
     online/offline. Offline/no-connection shows a "cloud-off" glyph and a red
@@ -370,7 +403,7 @@ Run `npm start`, then walk through:
    blocked screen with no navigation.
 4. **Iframes** — an iframe pointed at a non-whitelisted host inside an
    otherwise-whitelisted page is blocked.
-5. **Toolbar** — brand shows "Halisy Lablock"; Back is disabled on the home
+5. **Toolbar** — brand shows "HALISY WORKStudio"; Back is disabled on the home
    grid when there's nothing to return to, and enabled on any active site and
    on the blocked screen; on a site it steps back through natural browser
    history, and once that's exhausted it returns to the last place you were
@@ -453,14 +486,19 @@ Run `npm start`, then walk through:
    - Wrong password → error dialog, kiosk stays locked.
    - Cancel button → dialog closes, kiosk stays locked.
 
-2. **Sites tab** — add a site, save, confirm `config/whitelist.json` is
+2. **Sites tab** — add a site, save, confirm `<userData>/profiles.json` is
    rewritten atomically and the toolbar/home tabs rebuild **without a restart**
    (live apply). Edit and remove a site the same way; verify enforcement
-   updates immediately (a site removed is blocked on next navigation).
+   updates immediately (a site removed is blocked on next navigation). Grant a
+   native program via the installed-apps picker and check it appears on the
+   child's home grid and launches.
 
 3. **Activity tab** — confirm events appear for navigation, blocked attempts,
    home/back, escape/auth, whitelist saves, and app start/quit; newest-first
-   with paging and search; "Clear history" wipes the log.
+   with paging and search; "Clear history" wipes the log. Day navigator:
+   `‹`/`›` move one local day, "Today" jumps back, Next is disabled beyond
+   today, and an empty day shows "No activity on YYYY-MM-DD." Timestamps are
+   time-only since every row is within the selected day.
 
 4. **Auth gating** — on the unauthenticated password page, a direct
    `window.adminAPI.saveWhitelist(...)`/`getActivity(...)` call is refused
@@ -497,6 +535,66 @@ Run `npm start`, then walk through:
      red/cloud-off when the network drops.
    - Volume probe is slow (~0.5–1s) only on first panel open / each slider
      release — the 60s icon refresh does not probe volume.
+
+### Profiles, screen-time, usage hours & planner
+
+1. **Profile picker** — with 0 or 2+ profiles in `<userData>/profiles.json`,
+   boot shows the "who is using this?" picker and the toolbar chip; with exactly
+   one profile it auto-selects it and boots straight to the grid. Switching
+   profile via the toolbar chip changes the app grid and resets the screen-time
+   ticker to that child's ledger.
+2. **Installed-apps picker (native platforms)** — admin console → Permitted
+   Platforms → Add platform → **Installed program**: a searchable list of the
+   machine's installed apps (Start Menu) appears with checkboxes and the exe
+   path shown read-only underneath each name — no path is ever typed. Select
+   several and Apply: each becomes its own "Program" platform with the app's
+   own name/launcher args, then Save applies them live; the home grid launches
+   them (kiosk hides, returns on exit). A program with no Start Menu shortcut
+   won't be listed.
+3. **Admin screen-time fields** — admin console → Sites tab → edit a profile:
+   set `Daily screen-time limit` (0 = unlimited) and add usage hours per
+   weekday (`HH:MM` start/end, e.g. `08:30`–`16:00`); save and confirm
+   `<userData>/profiles.json` is rewritten and the kiosk picks it up live.
+4. **Usage-hours enforcement** — outside the active profile's hours, the
+   content pane switches to the **off-hours** screen (shows the allowed hours
+   and a "Choose a different profile" button); attempting to reopen a site
+   kicks straight back; closing the window while off-hours routes Home.
+   Inside the window, sites load normally. The off-hours switch is logged as
+   `restricted` activity.
+5. **Screen-time limit** — set a small daily limit (e.g. 2 min) for a profile,
+   use it past the limit: the toolbar shows the countdown banner ("shuts down
+   in mm:ss") and the workspace powers down after 60s. **Extend time** opens
+   the password dialog; a correct password cancels the countdown and logs an
+   `override` (wrong password keeps the countdown running).
+6. **Usage tab** — admin console → Usage tab shows per-day, per-profile used
+   time matching the activity log.
+7. **Admin planner** — admin console → Planner tab: pick a profile, add a
+   calendar event (date + title), a couple of timetable periods for today's
+   weekday, and a to-do; **Save** writes `planner-<profileId>.json`. Rows can
+   be removed; to-dos toggle done.
+8. **Child planner** — as the selected child, click **Plan** in the toolbar:
+   the content view shows today's date, today's events, today's timetable
+   periods and the to-do list (done items struck through). The child can tick
+   a to-do done/undone, add a new one (type + Enter or Add), or Remove one —
+   each change persists to `planner-<profileId>.json` on the spot and survives
+   reopening the planner; events and timetable stay fixed. **Back to apps**
+   returns Home. The Plan button is hidden on the picker and on the planner
+   pane itself.
+9. **Planner auth gating** — on the unauthenticated password page a direct
+   `window.adminAPI.getPlanner(...)`/`savePlanner(...)` is refused; the child
+   `PLANNER_ACTIVE_GET` read and `PLANNER_TODOS_UPDATE` write stay available
+   ungated (the write is scoped to the active profile's to-dos only).
+10. **Wi-Fi panel (network chip)** — click the Wi-Fi chip in the toolbar (not
+    the clock): a dedicated floating **Wi-Fi** panel opens with a rescan
+    button and the network list (signal bars, security, Connected badge). With
+    the app running elevated (or a dev box with Location enabled), Connect on
+    a saved network reconnects directly; on a new secured network an inline
+    password prompt appears (Cancel dismisses); Open networks connect without
+    one. Forget removes a saved profile. Successful connects/forgets appear
+    in the admin Activity tab as Wi-Fi events. Run as a standard user and the
+    panel instead shows a friendly explanation ("Windows is blocking Wi-Fi
+    control — run the kiosk as an administrator…") with the full netsh detail
+    wrapped below it — never truncated, never crashing.
 
 ## Windows version notes
 
