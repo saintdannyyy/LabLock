@@ -306,9 +306,9 @@
 
   initTheme();
   void loadPlanner();
-  // Refresh when the active profile changes (selectProfile pushes this) or the
-  // admin saves a profile/planner. A profile switch restarts on today; a planner
-  // save keeps the child's selected date.
+  // Refresh when the active profile changes (a successful sign-in pushes this)
+  // or the admin saves a profile/planner. A profile switch restarts on today; a
+  // planner save keeps the child's selected date.
   window.lockdown.onWhitelistRefreshed?.(() => {
     selected.setTime(today.getTime());
     viewDate = new Date(today.getFullYear(), today.getMonth(), 1);
