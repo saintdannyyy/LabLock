@@ -79,6 +79,10 @@
   const addSiteBtn = document.getElementById('add-site-btn') as HTMLButtonElement | null;
   const saveBtn = document.getElementById('save-btn') as HTMLButtonElement | null;
   const discardBtn = document.getElementById('discard-btn') as HTMLButtonElement | null;
+  const usageSaveBtn = document.getElementById('usage-save-btn') as HTMLButtonElement | null;
+  const usageDiscardBtn = document.getElementById('usage-discard-btn') as HTMLButtonElement | null;
+  const activitySaveBtn = document.getElementById('activity-save-btn') as HTMLButtonElement | null;
+  const activityDiscardBtn = document.getElementById('activity-discard-btn') as HTMLButtonElement | null;
   const sitesStatus = document.getElementById('sites-status') as HTMLElement | null;
   const activityList = document.getElementById('activity-list') as HTMLElement | null;
   const searchInput = document.getElementById('activity-search') as HTMLInputElement | null;
@@ -858,29 +862,53 @@
 
   addSiteBtn?.addEventListener('click', () => openEdit(-1));
 
-  saveBtn?.addEventListener('click', async () => {
-    if (!saveBtn || !sitesStatus) return;
+  // The "Save changes" / "Done" footer is repeated on the Sites, Usage and
+  // Activity panes; all Save buttons share one save path (they persist the
+  // same in-memory profiles snapshot) and all Done buttons close the console.
+  const footerSaveBtns = [saveBtn, usageSaveBtn, activitySaveBtn];
+
+  // The status message lands in the footer that owns the clicked Save button
+  // (falling back to the Sites toolbar status so a hidden-pane save still has
+  // somewhere to report). Only the Sites pane has a toolbar status; the Usage
+  // and Activity footers each carry their own live <span>.
+  function saveStatusFor(btn: HTMLButtonElement | null): HTMLElement | null {
+    return btn?.closest('.pane-footer')?.querySelector('.admin-status') ?? sitesStatus;
+  }
+
+  function setSaving(active: boolean): void {
+    footerSaveBtns.forEach((b) => {
+      if (b) b.disabled = active;
+    });
+  }
+
+  async function saveChanges(ev: Event): Promise<void> {
+    const btn = (ev.currentTarget as HTMLButtonElement) ?? saveBtn;
+    const status = saveStatusFor(btn);
+    if (!status) return;
     if (profiles.length === 0) {
-      setStatus(sitesStatus, 'At least one profile is required.', 'error');
+      setStatus(status, 'At least one profile is required.', 'error');
       return;
     }
-    saveBtn.disabled = true;
-    setStatus(sitesStatus, 'Saving…');
+    setSaving(true);
+    setStatus(status, 'Saving…');
     try {
       const result = await api.saveProfiles({ profiles });
       if (result.ok) {
-        setStatus(sitesStatus, `Saved ${profiles.length} profile(s). Changes applied live.`, 'success');
+        setStatus(status, `Saved ${profiles.length} profile(s). Changes applied live.`, 'success');
       } else {
-        setStatus(sitesStatus, result.error || 'Save failed.', 'error');
+        setStatus(status, result.error || 'Save failed.', 'error');
       }
     } catch {
-      setStatus(sitesStatus, 'Save failed.', 'error');
+      setStatus(status, 'Save failed.', 'error');
     } finally {
-      saveBtn.disabled = false;
+      setSaving(false);
     }
-  });
+  }
 
-  discardBtn?.addEventListener('click', () => api.close());
+  footerSaveBtns.forEach((b) => b?.addEventListener('click', saveChanges));
+  [discardBtn, usageDiscardBtn, activityDiscardBtn].forEach((b) =>
+    b?.addEventListener('click', () => api.close())
+  );
 
   // ---------- Usage ----------
 

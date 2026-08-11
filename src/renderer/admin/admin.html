@@ -50,6 +50,11 @@
           <span id="usage-date" class="admin-status"></span>
         </div>
         <ul id="usage-list" class="activity-list"></ul>
+        <div class="pane-footer">
+          <span id="usage-footer-status" class="admin-status" aria-live="polite"></span>
+          <button type="button" class="admin-btn admin-btn-save" id="usage-save-btn">Save changes</button>
+          <button type="button" class="admin-btn" id="usage-discard-btn">Done</button>
+        </div>
       </section>
 
       <!-- Planner (per profile) -->
@@ -121,6 +126,11 @@
         </div>
         <ul id="activity-list" class="activity-list"></ul>
         <button type="button" class="admin-btn admin-btn-more" id="load-more-btn" hidden>Load more</button>
+        <div class="pane-footer">
+          <span id="activity-footer-status" class="admin-status" aria-live="polite"></span>
+          <button type="button" class="admin-btn admin-btn-save" id="activity-save-btn">Save changes</button>
+          <button type="button" class="admin-btn" id="activity-discard-btn">Done</button>
+        </div>
       </section>
     </main>
   </div>
