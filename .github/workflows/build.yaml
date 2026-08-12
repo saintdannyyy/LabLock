@@ -17,7 +17,7 @@ jobs:
         run: npm ci
 
       - name: Build Electron App
-        run: npm run dist:linux
+        run: npm run package:linux
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
