@@ -4,12 +4,16 @@
   "description": "HEWStudio — Locked-down kiosk workspace for children's computers",
   "main": "dist/main/main.js",
   "private": true,
-  "author": "Saintdannyyy",
+  "author": {
+    "name": "Halisy",
+    "email": "infomail@codlogics.com"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/copy-assets.js",
     "start": "npm run build && electron .",
     "dev": "tsc -p tsconfig.json -w",
     "package:win": "npm run build && electron-builder --win",
+    "package:linux": "npm run build && electron-builder --linux deb",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
@@ -36,21 +40,34 @@
       {
         "from": "assets",
         "to": "assets"
-      },
-      {
-        "from": "bin/inputhook",
-        "to": "bin/inputhook"
-      },
-      {
-        "from": "bin/watchdog",
-        "to": "bin/watchdog"
       }
     ],
+    "linux": {
+      "target": [
+        "deb"
+      ],
+      "executableName": "hewstudio",
+      "category": "Utility",
+      "icon": "build/icon.png"
+    },
+    "deb": {
+      "priority": "optional"
+    },
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico",
       "executableName": "HewStudio",
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "extraResources": [
+        {
+          "from": "bin/inputhook",
+          "to": "bin/inputhook"
+        },
+        {
+          "from": "bin/watchdog",
+          "to": "bin/watchdog"
+        }
+      ]
     },
     "asar": true
   },
