@@ -19,18 +19,7 @@
   const toggle = toggleBtn;
   const error = errorEl;
 
-  // ?mode=extend reuses this dialog for the screen-time override: same layout,
-  // different channel + copy. Main routes the result to grantOverride().
-  const isExtend = new URLSearchParams(location.search).get('mode') === 'extend';
-  const send = isExtend ? window.escapeAPI.sendExtendResult : window.escapeAPI.sendPasswordResult;
-
-  const titleEl = document.getElementById('escape-title');
-  const subtitleEl = document.getElementById('escape-subtitle');
-  if (isExtend) {
-    if (titleEl) titleEl.textContent = 'Extend time';
-    if (subtitleEl) subtitleEl.textContent = 'Enter the admin password to add screen time.';
-    if (exitBtn) exitBtn.textContent = 'Extend time';
-  }
+  const send = window.escapeAPI.sendPasswordResult;
 
   let submitted = false;
   let passwordVisible = false;

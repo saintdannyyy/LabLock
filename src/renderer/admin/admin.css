@@ -448,8 +448,6 @@ body {
 .badge-profile-switch { background: #fff4d6; color: #7a5c00; }
 .badge-app-launch,
 .badge-app-exit { background: #e6f4ea; color: #1e8e3e; }
-.badge-screen-time-limit { background: #fce8e6; color: #c5221f; }
-.badge-override { background: #f3e8fd; color: #7b1fa2; }
 .badge-wifi-connect { background: #e1f0fd; color: #0b57d0; }
 .badge-restricted { background: #fef7e0; color: #7a5c00; }
 .badge-auth-failed { background: #fce8e6; color: #c5221f; }
@@ -1086,14 +1084,12 @@ body {
 }
 
 :root[data-theme='dark'] .platform-kind.kind-native,
-:root[data-theme='dark'] .badge-escape,
-:root[data-theme='dark'] .badge-override {
+:root[data-theme='dark'] .badge-escape {
   background: rgba(215, 174, 251, 0.16);
   color: #d7aefb;
 }
 
 :root[data-theme='dark'] .badge-blocked,
-:root[data-theme='dark'] .badge-screen-time-limit,
 :root[data-theme='dark'] .badge-auth-failed {
   background: rgba(242, 139, 130, 0.16);
   color: #f28b82;

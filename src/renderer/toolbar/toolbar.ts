@@ -15,11 +15,7 @@ type VolumeStatus = { available: boolean; percent: number | null; muted: boolean
 type VolumeRequest = { percent?: number; muted?: boolean };
 type ScreenTimeStatus = {
   usedSec: number;
-  limitSec: number;
-  limitReached: boolean;
-  overrideSec: number;
   inUsageWindow: boolean;
-  countdownSec?: number;
 };
 type SystemStatus = {
   ts: number;
@@ -72,9 +68,6 @@ const panelRestart = document.getElementById('panel-restart') as HTMLButtonEleme
 const wifiState = document.getElementById('wifi-state') as HTMLElement | null;
 const wifiList = document.getElementById('wifi-list') as HTMLElement | null;
 const wifiRefresh = document.getElementById('wifi-refresh') as HTMLButtonElement | null;
-const screenTimeBanner = document.getElementById('screen-time-banner') as HTMLElement | null;
-const screenTimeCountdown = document.getElementById('screen-time-countdown') as HTMLElement | null;
-const screenTimeExtendBtn = document.getElementById('screen-time-extend') as HTMLButtonElement | null;
 const themeLight = document.getElementById('theme-light') as HTMLButtonElement | null;
 const themeDark = document.getElementById('theme-dark') as HTMLButtonElement | null;
 
@@ -596,25 +589,8 @@ panelRestart?.addEventListener('click', () => {
 });
 
 /* ---------------------------------------------------------------------------
-   Screen-time limit banner
+   Screen-time status (control-panel "Screen time" row)
    --------------------------------------------------------------------------- */
-let bannerOpen = false;
-
-// Grow/shrink the toolbar view so the banner below the strip can paint. The
-// main process owns the actual view size; this just tells it when to resize.
-function setBannerOpen(open: boolean): void {
-  if (bannerOpen === open) return;
-  bannerOpen = open;
-  window.lockdown.setBannerOpen?.(open);
-}
-
-function formatCountdown(totalSec: number): string {
-  const s = Math.max(0, Math.floor(totalSec));
-  const mm = Math.floor(s / 60);
-  const ss = s % 60;
-  return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
-}
-
 function formatUsage(sec: number): string {
   const total = Math.max(0, Math.floor(sec));
   const h = Math.floor(total / 3600);
@@ -623,42 +599,25 @@ function formatUsage(sec: number): string {
   return `${m}m`;
 }
 
-// Control-panel "Screen time" row: the active profile's daily usage vs its
-// limit. Pushed by main every second, so the number ticks up live.
+// Control-panel "Screen time" row: how long the child has been signed in today.
+// Pushed by main every second, so the number ticks up live. There is no daily
+// limit any more -- the row is a read-out, enforcement is usage hours only.
 function renderScreenTimeRow(status: ScreenTimeStatus): void {
   if (!panelScreenTime) return;
   if (!hasActiveProfile) {
     panelScreenTime.textContent = '—';
-    panelScreenTime.classList.remove('is-warn');
     panelScreenTime.title = '';
     return;
   }
   const used = formatUsage(status.usedSec);
-  const limit = status.limitSec > 0 ? formatUsage(status.limitSec) : null;
-  panelScreenTime.textContent = limit ? `${used} / ${limit}` : used;
-  panelScreenTime.classList.toggle('is-warn', status.limitReached);
-  panelScreenTime.title = status.limitSec > 0
-    ? `Used ${used} of ${limit} today`
-    : `Used ${used} today`;
+  panelScreenTime.textContent = used;
+  panelScreenTime.title = `Signed in for ${used} today`;
 }
 
 function renderScreenTime(status: ScreenTimeStatus): void {
   lastScreenTimeStatus = status;
   renderScreenTimeRow(status);
-  if (!screenTimeBanner) return;
-  const show = status.limitReached;
-  screenTimeBanner.hidden = !show;
-  document.body.classList.toggle('screen-time-banner-visible', show);
-  setBannerOpen(show);
-  if (show && screenTimeCountdown) {
-    screenTimeCountdown.textContent = status.countdownSec ? formatCountdown(status.countdownSec) : '--:--';
-  }
 }
-
-screenTimeExtendBtn?.addEventListener('click', () => {
-  closePanels();
-  window.lockdown.extendScreenTime?.();
-});
 
 /* ---------------------------------------------------------------------------
    Site tabs

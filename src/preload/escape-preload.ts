@@ -27,11 +27,6 @@ contextBridge.exposeInMainWorld('escapeAPI', {
   sendPasswordResult: (password: string): void => {
     ipcRenderer.send('escape:password-result', password);
   },
-  // Screen-time extend dialog (same escape page loaded with ?mode=extend). Main
-  // grants extra minutes on a correct password instead of opening the console.
-  sendExtendResult: (password: string): void => {
-    ipcRenderer.send('extend:password-result', password);
-  },
   // UI theme mirror (escape dialog + admin console both load this preload).
   getTheme: (): Promise<'light' | 'dark'> => ipcRenderer.invoke(IPC.THEME_GET),
   onThemeChanged: (callback: (theme: 'light' | 'dark') => void): void => {

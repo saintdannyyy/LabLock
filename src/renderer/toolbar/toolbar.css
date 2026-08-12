@@ -359,68 +359,10 @@ body {
 }
 
 /* ==========================================================================
-   Screen-time limit banner. The toolbar view grows to 48 + 56px while it is
-   visible (see BANNER_HEIGHT in window.ts), so this absolute row sits right
-   below the strip; the page background is transparent there, so only the
-   banner paints over the home/site view.
-   ========================================================================== */
-.screen-time-banner {
-  position: absolute;
-  top: 48px;
-  left: 0;
-  right: 0;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  padding: 0 var(--space-4);
-  background: var(--color-error);
-  color: #ffffff;
-  z-index: 40;
-  box-shadow: var(--shadow-2);
-  user-select: none;
-}
-
-.screen-time-banner-text {
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: -0.1px;
-}
-
-.screen-time-countdown {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-.screen-time-extend-btn {
-  height: 30px;
-  padding: 0 var(--space-4);
-  border: none;
-  border-radius: var(--radius-full);
-  background: #ffffff;
-  color: var(--color-error);
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: filter var(--duration-short) var(--ease-standard);
-}
-
-.screen-time-extend-btn:hover {
-  filter: brightness(0.94);
-}
-
-.screen-time-extend-btn:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: 2px;
-}
-
-/* Floating panel — a macOS menu-bar-style popover. The view + page background
+   Floating panel — a macOS menu-bar-style popover. The view + page background
    below the strip are transparent, so this card simply floats over the home
-   view; clicking outside it (or pressing Escape) dismisses it. While the
-   screen-time limit banner is up it drops below the banner so the Extend
-   button stays clickable. */
+   view; clicking outside it (or pressing Escape) dismisses it.
+   ========================================================================== */
 .status-panel {
   position: absolute;
   top: 52px;
@@ -433,10 +375,6 @@ body {
   padding: var(--space-3) 0;
   z-index: 50;
   user-select: none;
-}
-
-.screen-time-banner-visible .status-panel {
-  top: 108px;
 }
 
 .status-panel-header {
@@ -593,10 +531,6 @@ body {
   padding: var(--space-3) 0;
   z-index: 50;
   user-select: none;
-}
-
-.screen-time-banner-visible .wifi-panel-popup {
-  top: 108px;
 }
 
 .wifi-panel-head {
@@ -866,15 +800,9 @@ body {
 }
 
 /* Error surfaces: swap the light error pink for a darker red that still reads
-   as danger under the white banner text / power button text. */
-:root[data-theme='dark'] .screen-time-banner,
+   as danger under the power button text. */
 :root[data-theme='dark'] .panel-power-btn {
   background: #8c1d18;
   color: #ffffff;
-}
-
-:root[data-theme='dark'] .screen-time-extend-btn {
-  background: #ffffff;
-  color: #8c1d18;
 }
 

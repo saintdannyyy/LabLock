@@ -53,7 +53,6 @@ declare global {
       getSystemStatus?(includeVolume: boolean): Promise<SystemStatus>;
       setVolume?(req: VolumeRequest): Promise<VolumeStatus>;
       setPanelOpen?(open: boolean): void;
-      setBannerOpen?(open: boolean): void;
       switchProfile?(): void;
       getPlanner?(): Promise<PlannerFile>;
       saveTodos?(todos: PlannerTodo[]): Promise<SaveResult>;
@@ -62,7 +61,6 @@ declare global {
       connectWifi?(ssid: string, password?: string | null): Promise<WifiActionResult>;
       forgetWifi?(ssid: string): Promise<WifiActionResult>;
       getScreenTimeStatus?(): Promise<ScreenTimeStatus>;
-      extendScreenTime?(): void;
       getTheme?(): Promise<'light' | 'dark'>;
       setTheme?(theme: 'light' | 'dark'): Promise<'light' | 'dark'>;
       onThemeChanged?(callback: (theme: 'light' | 'dark') => void): void;
@@ -75,7 +73,6 @@ declare global {
     // via contextBridge.
     escapeAPI: {
       sendPasswordResult(password: string): void;
-      sendExtendResult(password: string): void;
       getTheme?(): Promise<'light' | 'dark'>;
       onThemeChanged?(callback: (theme: 'light' | 'dark') => void): void;
     };

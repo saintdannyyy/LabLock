@@ -58,8 +58,8 @@ navigation to anything else.
     (whitelist save, planner read/write, history read/clear) is password-gated
     in the main process.
 - **Per-child profiles** — `<userData>/profiles.json` defines children with an
-  avatar, platform membership, a daily screen-time limit (minutes, 0 =
-  unlimited) and allowed usage hours (per-weekday `{ day, start, end }`). One
+  avatar, platform membership, and allowed usage hours (per-weekday
+  `{ day, start, end }`). One
   profile is active at a time; the boot-time picker (shown whenever there are
   2+ profiles) or the toolbar chip switches it. **Every profile requires a
   password** (salted SHA-256, hashed only in the main process) — the picker
@@ -67,12 +67,11 @@ navigation to anything else.
   with a password each time. A "Forgot password?" link records a request
   (`<userData>/reset-requests.json`) that the admin acts on from a "Pending
   password resets" strip in the admin console.
-- **Screen-time limits + usage hours** — a per-second ticker tracks each
-  profile's used time against its daily limit (`<userData>/screen-time-<profileId>.json`,
-  resets daily). Reaching the limit shows a countdown banner and shuts the
-  workspace down in 60s unless an admin extends it (`Extend time` → password).
-  Outside the profile's allowed hours the content switches to an "off-hours"
-  screen until the next allowed window.
+- **Usage hours** — a per-second ticker tracks each profile's used time
+  (`<userData>/screen-time-<profileId>.json`, resets daily) and whether the
+  current time is inside the profile's allowed usage hours. Outside the
+  profile's allowed hours the content switches to an "off-hours" screen until
+  the next allowed window.
 - **Planner (child view)** — the toolbar **Plan** button opens the active
   profile's planner: today's events, today's timetable periods, and an
   interactive to-do list. Events/timetable are admin-authored (read-only for
@@ -568,28 +567,23 @@ Run `npm start`, then walk through:
    own name/launcher args, then Save applies them live; the home grid launches
    them (kiosk hides, returns on exit). A program with no Start Menu shortcut
    won't be listed.
-3. **Admin screen-time fields** — admin console → Sites tab → edit a profile:
-   set `Daily screen-time limit` (0 = unlimited) and add usage hours per
-   weekday (`HH:MM` start/end, e.g. `08:30`–`16:00`); save and confirm
-   `<userData>/profiles.json` is rewritten and the kiosk picks it up live.
+3. **Admin profile fields** — admin console → Sites tab → edit a profile:
+   add usage hours per weekday (`HH:MM` start/end, e.g. `08:30`–`16:00`); save
+   and confirm `<userData>/profiles.json` is rewritten and the kiosk picks it
+   up live.
 4. **Usage-hours enforcement** — outside the active profile's hours, the
    content pane switches to the **off-hours** screen (shows the allowed hours
    and a "Choose a different profile" button); attempting to reopen a site
    kicks straight back; closing the window while off-hours routes Home.
    Inside the window, sites load normally. The off-hours switch is logged as
    `restricted` activity.
-5. **Screen-time limit** — set a small daily limit (e.g. 2 min) for a profile,
-   use it past the limit: the toolbar shows the countdown banner ("shuts down
-   in mm:ss") and the workspace powers down after 60s. **Extend time** opens
-   the password dialog; a correct password cancels the countdown and logs an
-   `override` (wrong password keeps the countdown running).
-6. **Usage tab** — admin console → Usage tab shows per-day, per-profile used
+5. **Usage tab** — admin console → Usage tab shows per-day, per-profile used
    time matching the activity log.
-7. **Admin planner** — admin console → Planner tab: pick a profile, add a
+6. **Admin planner** — admin console → Planner tab: pick a profile, add a
    calendar event (date + title), a couple of timetable periods for today's
    weekday, and a to-do; **Save** writes `planner-<profileId>.json`. Rows can
    be removed; to-dos toggle done.
-8. **Child planner** — as the selected child, click **Plan** in the toolbar:
+7. **Child planner** — as the selected child, click **Plan** in the toolbar:
    the content view shows today's date, today's events, today's timetable
    periods and the to-do list (done items struck through). The child can tick
    a to-do done/undone, add a new one (type + Enter or Add), or Remove one —

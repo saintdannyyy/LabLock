@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import { app, dialog, BrowserWindow, Menu, ipcMain, powerMonitor, net } from 'electron';
 import { loadProfiles, saveProfiles, setProfilePassword, getActiveProfile } from './profiles';
-import { createMainWindow, getWhitelistForRenderer, getPlatformsForRenderer, getProfilesForRenderer, authProfile, showPicker, launchApp, navigateToSite, goHome, goBack, shutdownComputer, shutdownImmediately, restartComputer, refreshActiveProfile, notifyWhitelistRefreshed, notifyPlannerChanged, KIOSK, setAllowClose, setPanelOpen, setBannerOpen, sendToToolbar, onToolbarReady, getScreenTimeStatus, pauseScreenTimeForAdmin, resumeScreenTimeForAdmin, getUsageForAdmin, enforceUsageHours, broadcastTheme } from './window';
-import { setHandlers as setScreenTimeHandlers, grantOverride as grantScreenTimeOverride } from './screen-time';
+import { createMainWindow, getWhitelistForRenderer, getPlatformsForRenderer, getProfilesForRenderer, authProfile, showPicker, launchApp, navigateToSite, goHome, goBack, shutdownComputer, restartComputer, refreshActiveProfile, notifyWhitelistRefreshed, notifyPlannerChanged, KIOSK, setAllowClose, setPanelOpen, sendToToolbar, onToolbarReady, getScreenTimeStatus, pauseScreenTimeForAdmin, resumeScreenTimeForAdmin, getUsageForAdmin, enforceUsageHours, broadcastTheme } from './window';
+import { setHandlers as setScreenTimeHandlers } from './screen-time';
 import { detach as detachUsage } from './usage';
 import { loadPlanner, savePlanner, validatePlanner } from './planner';
 import { requestReset, getPendingRequests, clearRequestForProfile, clearAllRequests } from './reset-requests';
@@ -38,43 +38,8 @@ let escapePromptWindow: BrowserWindow | null = null;
 // compromised non-admin renderer cannot write the whitelist or read history.
 let adminAuthenticated = false;
 
-// Screen-time limit banner. The toolbar renders the banner + countdown while
-// `screenTimeCountdownSec > 0`; the countdown lives here (single source of
-// truth) and calls shutdownComputer() at zero so an admin override is the only
-// way to keep the session alive past the daily quota.
-const SCREEN_TIME_GRACE_SEC = 60;
-const SCREEN_TIME_EXTEND_MINUTES = 30;
-let screenTimeCountdownTimer: NodeJS.Timeout | null = null;
-let screenTimeCountdownSec = 0;
-let extendPromptWindow: BrowserWindow | null = null;
-
-function pushScreenTimeStatus(extra?: Partial<ScreenTimeStatus>): void {
-  sendToToolbar(IPC.SCREEN_TIME_EVENT, { ...getScreenTimeStatus(), ...extra });
-}
-
-function stopScreenTimeCountdown(): void {
-  if (screenTimeCountdownTimer) {
-    clearInterval(screenTimeCountdownTimer);
-    screenTimeCountdownTimer = null;
-  }
-  screenTimeCountdownSec = 0;
-  pushScreenTimeStatus({ countdownSec: 0 });
-}
-
-function startScreenTimeCountdown(): void {
-  if (screenTimeCountdownTimer) return;
-  logActivity('screen-time-limit', 'Daily screen-time limit reached — shutting down in 60s');
-  screenTimeCountdownSec = SCREEN_TIME_GRACE_SEC;
-  pushScreenTimeStatus({ countdownSec: screenTimeCountdownSec });
-  screenTimeCountdownTimer = setInterval(() => {
-    screenTimeCountdownSec -= 1;
-    if (screenTimeCountdownSec <= 0) {
-      stopScreenTimeCountdown();
-      shutdownImmediately();
-      return;
-    }
-    pushScreenTimeStatus({ countdownSec: screenTimeCountdownSec });
-  }, 1000);
+function pushScreenTimeStatus(): void {
+  sendToToolbar(IPC.SCREEN_TIME_EVENT, getScreenTimeStatus());
 }
 
 function logActivity(kind: ActivityEvent['kind'], detail: string, url?: string): void {
@@ -234,72 +199,6 @@ function showAdminEscapeDialog(mainWindow: BrowserWindow): void {
   ipcMain.once(channel, handler);
 }
 
-// Admin override for the screen-time limit: a full-screen password prompt
-// (same escape page in `mode=extend`, which swaps the title/button text). A
-// correct password grants SCREEN_TIME_EXTEND_MINUTES more minutes and cancels
-// the pending shutdown countdown. Cancel/wrong-password leaves the banner
-// running.
-function showExtendDialog(mainWindow: BrowserWindow): void {
-  if (extendPromptWindow) return;
-
-  extendPromptWindow = new BrowserWindow({
-    width: 400,
-    height: 340,
-    parent: mainWindow,
-    modal: true,
-    show: false,
-    frame: false,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    closable: true,
-    alwaysOnTop: true,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      preload: preloadFile('escape-preload.js'),
-    },
-  });
-
-  extendPromptWindow.setBounds(mainWindow.getBounds());
-  extendPromptWindow.loadFile(rendererFile('escape', 'escape.html'), { query: { mode: 'extend' } });
-  extendPromptWindow.once('ready-to-show', () => extendPromptWindow?.show());
-
-  pauseScreenTimeForAdmin();
-
-  extendPromptWindow.on('closed', () => {
-    extendPromptWindow = null;
-    resumeScreenTimeForAdmin();
-  });
-
-  const channel = 'extend:password-result';
-  const handler = (_evt: Electron.IpcMainEvent, enteredPassword: string) => {
-    ipcMain.removeListener(channel, handler);
-    if (enteredPassword === '__CANCEL__') {
-      closeExtendWindow();
-      return;
-    }
-    if (enteredPassword === ADMIN_PASSWORD) {
-      logActivity('override', `Admin extended screen time by ${SCREEN_TIME_EXTEND_MINUTES} minutes`);
-      grantScreenTimeOverride(SCREEN_TIME_EXTEND_MINUTES);
-      closeExtendWindow();
-    } else {
-      logActivity('escape', 'Incorrect password attempt (screen-time override)');
-      closeExtendWindow();
-      dialog.showErrorBox('Incorrect Password', 'The password you entered is incorrect.');
-    }
-  };
-  ipcMain.once(channel, handler);
-}
-
-function closeExtendWindow(): void {
-  if (extendPromptWindow) {
-    extendPromptWindow.close();
-    extendPromptWindow = null;
-  }
-}
-
 function stopEscapePipeServer(): void {
   if (escapePipeServer) {
     escapePipeServer.close();
@@ -372,41 +271,20 @@ app.whenReady().then(() => {
   ipcMain.handle(IPC.THEME_SET, (_event, theme: unknown): Theme => setTheme(theme));
   subscribeTheme((theme) => {
     broadcastTheme(theme);
-    for (const win of [escapePromptWindow, extendPromptWindow]) {
-      if (win && !win.isDestroyed()) {
-        win.webContents.send(IPC.THEME_CHANGED, theme);
-      }
+    if (escapePromptWindow && !escapePromptWindow.isDestroyed()) {
+      escapePromptWindow.webContents.send(IPC.THEME_CHANGED, theme);
     }
   });
 
   // Screen-time ticker callbacks. onChange streams every per-second status
-  // update to the toolbar banner; onLimit fires exactly once when the daily
-  // quota is hit and starts the shutdown countdown. While a countdown is
-  // running it owns the push cadence (it also carries `countdownSec`), so the
-  // module's raw onChange pushes are suppressed to avoid flickering the
-  // countdown back to "--:--".
+  // update (used-time read-out) and re-checks the allowed usage hours so the
+  // content pane routes to/from the restricted screen the moment a window
+  // opens or closes.
   setScreenTimeHandlers({
     onChange: (status) => {
-      // Off-hours routing is independent of the daily quota: the moment the
-      // allowed-window check flips, route to/away from the restricted screen.
       enforceUsageHours(status.inUsageWindow);
-      if (screenTimeCountdownTimer) {
-        // An admin override landed (or the day rolled over) and the countdown
-        // is already being torn down by the stop below.
-        if (!status.limitReached) stopScreenTimeCountdown();
-        return;
-      }
       pushScreenTimeStatus();
     },
-    onLimit: startScreenTimeCountdown,
-  });
-
-  // The banner's "Extend time" button -> admin password prompt. Ungated in the
-  // same sense as the escape hatch: correct password required, so a student
-  // banner tap just opens the dialog (which refuses without admin credentials).
-  ipcMain.on(IPC.SCREEN_TIME_EXTEND, () => {
-    const win = BrowserWindow.getAllWindows()[0];
-    if (win) showExtendDialog(win);
   });
 
   // Admin-console IPC (profiles save, activity log). Every handler is gated on
@@ -598,7 +476,6 @@ app.whenReady().then(() => {
     return setSystemVolume({ percent, muted });
   });
   ipcMain.on(IPC.PANEL_RESIZE, (_event, open: unknown) => setPanelOpen(open === true));
-  ipcMain.on(IPC.BANNER_RESIZE, (_event, open: unknown) => setBannerOpen(open === true));
 
   // System-status push (control-panel icons). The main process owns the cadence
   // and pushes snapshots over IPC -- the toolbar is a pure listener with no

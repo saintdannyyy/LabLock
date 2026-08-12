@@ -23,7 +23,6 @@
     name: string;
     avatarColor: string;
     skinColor: string;
-    dailyLimitMin: number;
     usageHours: { start: string; end: string }[];
     apps: PlatformEntry[];
     // Opaque to the renderer: main hashes/verifies child passwords. Presence
@@ -129,7 +128,6 @@
   const profilePasswordRemoveWrap = document.getElementById('profile-password-remove-wrap') as HTMLElement | null;
   const fProfilePasswordRemove = document.getElementById('profile-password-remove') as HTMLInputElement | null;
   const fProfileColor = document.getElementById('profile-color-input') as HTMLInputElement | null;
-  const fProfileLimit = document.getElementById('profile-limit-input') as HTMLInputElement | null;
   const usageHoursEditor = document.getElementById('usage-hours-editor') as HTMLElement | null;
   const addHourBtn = document.getElementById('add-hour-btn') as HTMLButtonElement | null;
   const profileError = document.getElementById('profile-error') as HTMLElement | null;
@@ -418,7 +416,6 @@
     const profile = mode === 'edit' ? activeProfile() : null;
     if (fProfileName) fProfileName.value = profile?.name ?? '';
     if (fProfileColor) fProfileColor.value = profile?.avatarColor ?? '#4285f4';
-    if (fProfileLimit) fProfileLimit.value = String(profile?.dailyLimitMin ?? 0);
     // Password state: every profile must have one, but the field is only
     // required when ADDING. In edit mode a blank field keeps the current
     // password; "Remove this password" clears it (which blocks the profile at
@@ -455,7 +452,6 @@
       return;
     }
     const color = fProfileColor?.value || '#4285f4';
-    const dailyLimitMin = Math.max(0, Math.trunc(Number(fProfileLimit?.value) || 0));
 
     const usageHours: { start: string; end: string }[] = [];
     for (const w of editingUsageHours) {
@@ -476,7 +472,6 @@
         name,
         avatarColor: color,
         skinColor: color,
-        dailyLimitMin,
         usageHours,
         apps: [],
       };
@@ -487,7 +482,6 @@
       profile.name = name;
       profile.avatarColor = color;
       profile.skinColor = color;
-      profile.dailyLimitMin = dailyLimitMin;
       profile.usageHours = usageHours;
       profileId = profile.id;
     }
@@ -1425,8 +1419,6 @@
     'profile-switch': 'Profile',
     'app-launch': 'Launch',
     'app-exit': 'Exit',
-    'screen-time-limit': 'Time',
-    override: 'Override',
     restricted: 'Off-hours',
     'wifi-connect': 'Wi-Fi',
     'auth-failed': 'Login',

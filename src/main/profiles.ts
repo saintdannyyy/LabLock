@@ -188,7 +188,6 @@ function defaultProfile(apps: PlatformEntry[]): Profile {
     name: 'My Workspace',
     avatarColor: '#4285f4',
     skinColor: '#0b57d0',
-    dailyLimitMin: 0,
     usageHours: [],
     apps,
   };
@@ -200,7 +199,6 @@ export function defaultProfileFor(name: string): Profile {
     name: name || 'My Workspace',
     avatarColor: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
     skinColor: '#0b57d0',
-    dailyLimitMin: 0,
     usageHours: [],
     apps: [],
   };
@@ -276,10 +274,6 @@ function validateProfile(entry: unknown, index: number): Profile {
   const id: string = p.id;
   const name: string = p.name;
 
-  const dailyLimitMin = typeof p.dailyLimitMin === 'number' && Number.isFinite(p.dailyLimitMin)
-    ? Math.max(0, Math.trunc(p.dailyLimitMin))
-    : 0;
-
   let usageHours: { start: string; end: string }[] = [];
   if (p.usageHours !== undefined) {
     if (!Array.isArray(p.usageHours)) {
@@ -325,7 +319,6 @@ function validateProfile(entry: unknown, index: number): Profile {
     name,
     avatarColor: typeof p.avatarColor === 'string' ? p.avatarColor : '#4285f4',
     skinColor: typeof p.skinColor === 'string' ? p.skinColor : '#0b57d0',
-    dailyLimitMin,
     usageHours,
     apps,
     ...(passwordHash !== undefined ? { passwordHash, passwordSalt } : {}),

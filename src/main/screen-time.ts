@@ -3,13 +3,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { ScreenTimeStatus, UsageWindow } from '../shared/types';
 
-// Per-profile daily screen time. One small JSON file per profile
-// (<userData>/screen-time-<profileId>.json) recording TODAY's used seconds and
-// any admin-granted override minutes. A 1s in-memory ticker accumulates while
-// the profile is active; the file is written on a 15s cadence + on quit, so a
-// power-cut costs at most 15s of usage. If the file's date is stale the record
-// resets to a fresh day (a reboot the same day keeps the quota, which is what
-// makes "re-banner on reboot until override" work).
+// Per-profile usage-hours enforcement + a "used today" read-out. One small JSON
+// file per profile (<userData>/screen-time-<profileId>.json) records TODAY's
+// signed-in seconds for the control-panel row. A 1s in-memory ticker also
+// re-checks the allowed usage windows every second so the content pane routes
+// to/from the restricted screen the moment a window opens or closes. The file
+// is written on a 15s cadence + on quit, so a power-cut costs at most 15s of
+// read-out. If the file's date is stale the record resets to a fresh day.
 const DIRTY_INTERVAL_MS = 15_000;
 
 function todayKey(): string {
@@ -22,20 +22,16 @@ function todayKey(): string {
 interface DayRecord {
   date: string; // YYYY-MM-DD
   usedSec: number;
-  overrideSec: number; // admin-granted extra SECONDS today
 }
 
 let activeProfileId: string | null = null;
-let dailyLimitMin = 0; // 0 = unlimited
 let usageHours: UsageWindow[] = [];
-let record: DayRecord = { date: todayKey(), usedSec: 0, overrideSec: 0 };
+let record: DayRecord = { date: todayKey(), usedSec: 0 };
 let paused = false;
 let dirty = false;
-let reachedFired = false; // fire the limit banner once per reached-state
 let ticker: NodeJS.Timeout | null = null;
 let persistTimer: NodeJS.Timeout | null = null;
 let onChange: ((status: ScreenTimeStatus) => void) | null = null;
-let onLimit: (() => void) | null = null;
 
 function filePath(profileId: string): string {
   return path.join(app.getPath('userData'), `screen-time-${profileId}.json`);
@@ -44,18 +40,13 @@ function filePath(profileId: string): string {
 function readRecord(profileId: string): DayRecord {
   try {
     const parsed = JSON.parse(fs.readFileSync(filePath(profileId), 'utf-8')) as DayRecord;
-    if (
-      parsed &&
-      typeof parsed.date === 'string' &&
-      typeof parsed.usedSec === 'number' &&
-      typeof parsed.overrideSec === 'number'
-    ) {
+    if (parsed && typeof parsed.date === 'string' && typeof parsed.usedSec === 'number') {
       return parsed;
     }
   } catch {
     // no record yet
   }
-  return { date: todayKey(), usedSec: 0, overrideSec: 0 };
+  return { date: todayKey(), usedSec: 0 };
 }
 
 function persist(): void {
@@ -70,18 +61,16 @@ function persist(): void {
   }
 }
 
-// Start accumulating for a profile (re-attaching switches profile and re-reads
+// Start monitoring for a profile (re-attaching switches profile and re-reads
 // that profile's record). Called on picker selection and after admin saves.
-export function attachProfile(profileId: string, limitMin: number, hours: UsageWindow[]): void {
+export function attachProfile(profileId: string, hours: UsageWindow[]): void {
   detach();
   activeProfileId = profileId;
-  dailyLimitMin = limitMin;
   usageHours = hours;
   record = readRecord(profileId);
   if (record.date !== todayKey()) {
-    record = { date: todayKey(), usedSec: 0, overrideSec: 0 };
+    record = { date: todayKey(), usedSec: 0 };
   }
-  reachedFired = false;
   paused = false;
   dirty = true;
   ticker = setInterval(tick, 1000);
@@ -100,13 +89,13 @@ export function detach(): void {
     persistTimer = null;
   }
   activeProfileId = null;
-  // Clear any on-screen limit banner (e.g. when the profile picker opens): the
-  // toolbar must never keep showing "limit reached" without an active profile.
-  onChange?.({ usedSec: 0, limitSec: 0, limitReached: false, overrideSec: 0, inUsageWindow: true });
+  // Clear any on-screen usage state (e.g. when the profile picker opens): the
+  // toolbar must never keep showing "used" without an active profile.
+  onChange?.({ usedSec: 0, inUsageWindow: true });
 }
 
 // Pause/resume while the admin console is open so admin time isn't counted as
-// child screen time.
+// child sign-in time.
 export function pause(): void {
   if (paused) return;
   persist();
@@ -118,9 +107,8 @@ export function resume(): void {
   tick();
 }
 
-export function setHandlers(handlers: { onChange?: (s: ScreenTimeStatus) => void; onLimit?: () => void }): void {
+export function setHandlers(handlers: { onChange?: (s: ScreenTimeStatus) => void }): void {
   onChange = handlers.onChange ?? null;
-  onLimit = handlers.onLimit ?? null;
 }
 
 function timeToSec(hhmm: string): number {
@@ -146,14 +134,8 @@ function inAllowedWindow(): boolean {
 }
 
 function computeStatus(): ScreenTimeStatus {
-  const limitSec = dailyLimitMin > 0 ? dailyLimitMin * 60 : 0;
-  const usedSec = record.usedSec;
-  const overrideSec = record.overrideSec;
   return {
-    usedSec,
-    limitSec,
-    limitReached: limitSec > 0 && usedSec >= limitSec + overrideSec,
-    overrideSec,
+    usedSec: record.usedSec,
     inUsageWindow: inAllowedWindow(),
   };
 }
@@ -165,27 +147,10 @@ export function getStatus(): ScreenTimeStatus {
 function tick(): void {
   if (!activeProfileId || paused) return;
   if (record.date !== todayKey()) {
-    record = { date: todayKey(), usedSec: 0, overrideSec: 0 };
-    reachedFired = false;
+    record = { date: todayKey(), usedSec: 0 };
     dirty = true;
   }
   record.usedSec += 1;
   dirty = true;
-  const status = computeStatus();
-  onChange?.(status);
-  if (status.limitReached && !reachedFired) {
-    reachedFired = true;
-    onLimit?.();
-  }
-}
-
-// Admin grants extra time from the limit banner's password prompt. `minutes`
-// is converted to seconds so `record.overrideSec` (and ScreenTimeStatus's
-// overrideSec) stays consistent with usedSec/limitSec.
-export function grantOverride(minutes: number): void {
-  record.overrideSec += Math.max(0, Math.round(minutes * 60));
-  reachedFired = false;
-  dirty = true;
-  persist();
   onChange?.(computeStatus());
 }

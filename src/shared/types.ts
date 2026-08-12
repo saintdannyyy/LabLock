@@ -42,14 +42,13 @@ export interface UsageWindow {
 }
 
 // A per-child (or default) profile. The kiosk shows a picker at boot; the
-// selected profile scopes the app grid, navigation enforcement, screen-time
+// selected profile scopes the app grid, navigation enforcement, usage-hours
 // policy and activity attribution.
 export interface Profile {
   id: string;
   name: string;
   avatarColor: string;
   skinColor: string;
-  dailyLimitMin: number; // 0 = unlimited
   usageHours: UsageWindow[]; // empty = anytime allowed
   apps: PlatformEntry[];
   // Profile login password. Stored as a salted SHA-256 hash; hashing and
@@ -136,8 +135,6 @@ export type ActivityKind =
   | 'profile-switch'
   | 'app-launch'
   | 'app-exit'
-  | 'screen-time-limit'
-  | 'override'
   | 'restricted'
   | 'wifi-connect'
   | 'auth-failed'
@@ -199,17 +196,13 @@ export interface UsageSnapshot {
   }[];
 }
 
-// A per-profile, per-day screen-time snapshot for the control panel / admin.
+// A per-profile, per-day usage-hours snapshot pushed to the toolbar every tick.
+// `usedSec` is how long the child has been signed in today (for the control
+// panel's read-out); `inUsageWindow` drives off-hours routing. There is no
+// daily quota any more -- enforcement is usage hours only.
 export interface ScreenTimeStatus {
   usedSec: number;
-  limitSec: number; // dailyLimitMin * 60; 0 = unlimited
-  limitReached: boolean;
-  overrideSec: number; // extra seconds granted today via admin override
   inUsageWindow: boolean;
-  // Seconds remaining before the auto-shutdown fires the moment the limit is
-  // hit. Present (> 0) only while the banner countdown is running; 0/absent
-  // means no countdown in flight (either not reached or an override landed).
-  countdownSec?: number;
 }
 
 // Battery charge state. 'ac' = plugged in but not actively charging,
@@ -294,10 +287,6 @@ export const IPC = {
   GET_SYSTEM_STATUS: 'lockdown:get-system-status',
   SET_VOLUME: 'lockdown:set-volume',
   PANEL_RESIZE: 'lockdown:panel-resize',
-  // Toolbar <-> main handshake for the screen-time limit banner: the toolbar
-  // tells main when the banner is visible so the (transparent) toolbar view can
-  // grow below the 48px strip to actually render it.
-  BANNER_RESIZE: 'lockdown:banner-resize',
   // Main-process push of a fresh SystemStatus (icons/panel data). `volume` is
   // absent (probe skipped) so the renderer keeps its last volume view.
   SYSTEM_STATUS: 'lockdown:system-status',
@@ -320,10 +309,9 @@ export const IPC = {
   // Admin console -> main: the (slow) per-exe icon batch for the list above,
   // cached to disk so it only ever runs once per machine.
   INSTALLED_APPS_ICONS_GET: 'lockdown:installed-apps-icons-get',
-  // Phase 5: screen time
+  // Phase 5: screen time (usage-hours status push)
   SCREEN_TIME_GET: 'lockdown:screen-time-get',
   SCREEN_TIME_EVENT: 'lockdown:screen-time-event', // main -> toolbar push
-  SCREEN_TIME_EXTEND: 'lockdown:screen-time-extend', // toolbar -> main: show extend dialog
   // Phase 5: per-platform usage (admin Usage tab)
   USAGE_GET: 'lockdown:usage-get',
   // Phase 5: planner (per-child)

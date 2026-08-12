@@ -20,10 +20,6 @@ const TOOLBAR_HEIGHT = 48;
 // The child's Calendar/Timetable/To-dos panels live here, Apple-style.
 const SIDEBAR_WIDTH = 280;
 
-// Height of the screen-time limit banner below the strip when it is visible
-// (matches .screen-time-banner in toolbar.css).
-const BANNER_HEIGHT = 56;
-
 // Phase 2 lockdown mode. Active in any packaged (production) build, and
 // additionally forceable in dev via LOCKDOWN_KIOSK=1 so the real locked
 // window can be exercised on a dev machine without building an installer.
@@ -49,16 +45,17 @@ function syncWhitelistFromProfile(): void {
   whitelist = { sites: profile ? webApps(profile) : [] };
 }
 
-// (Re)attach the screen-time ticker to the active profile so its daily quota /
-// allowed hours govern the session. Called on boot, profile select, and after
-// an admin profiles save. With no active profile (picker), stop the ticker.
+// (Re)attach the screen-time monitor to the active profile so its allowed
+// usage hours govern the session and the "used today" read-out ticks. Called on
+// boot, profile select, and after an admin profiles save. With no active
+// profile (picker), stop the ticker.
 function applyScreenTimeForProfile(): void {
   const profile = getActiveProfile();
   if (!profile) {
     detachScreenTime();
     return;
   }
-  attachProfile(profile.id, profile.dailyLimitMin, profile.usageHours);
+  attachProfile(profile.id, profile.usageHours);
 }
 
 // Keep the usage tracker pointed at the active profile (platform sessions
@@ -94,17 +91,6 @@ let panelOpen = false;
 export function setPanelOpen(open: boolean): void {
   if (panelOpen === open) return;
   panelOpen = open;
-  layoutViews();
-}
-
-// Screen-time limit banner. The toolbar page grows its (transparent) view below
-// the strip while the banner is visible, exactly like the control panel, so the
-// red banner renders over the site/grid instead of being clipped to 48px.
-let bannerOpen = false;
-
-export function setBannerOpen(open: boolean): void {
-  if (bannerOpen === open) return;
-  bannerOpen = open;
   layoutViews();
 }
 
@@ -482,10 +468,8 @@ function layoutViews(): void {
   const [width, height] = mainWindow.getContentSize();
   // The toolbar view grows to cover the whole window while the control panel is
   // open so its dropdown can render (and intercept clicks) below the 48px
-  // strip; the transparent view background keeps the home view visible. The
-  // screen-time limit banner grows the view a fixed amount below the strip for
-  // the same reason.
-  const toolbarHeight = panelOpen ? height : TOOLBAR_HEIGHT + (bannerOpen ? BANNER_HEIGHT : 0);
+  // strip; the transparent view background keeps the home view visible.
+  const toolbarHeight = panelOpen ? height : TOOLBAR_HEIGHT;
   toolbarView.setBounds({ x: 0, y: 0, width, height: toolbarHeight });
 
   // The planner sidebar owns the left column while a profile is active; the
@@ -812,19 +796,6 @@ export function restartComputer(): void {
   confirmPowerAction('restart');
 }
 
-// Screen-time limit shutdown: NO confirmation dialog. The 60s banner countdown
-// IS the warning, and a Cancel button on a dialog would let the student defeat
-// the daily limit. Like confirmPowerAction, gated on KIOSK so a dev session
-// can exercise the banner without power-cycling the machine.
-export function shutdownImmediately(): void {
-  if (!KIOSK) return;
-  logActivity('power', 'Screen-time limit reached — shutting down');
-  spawn('shutdown.exe', ['/s', '/t', '1'], {
-    stdio: 'ignore',
-    windowsHide: true,
-  });
-}
-
 export function getWhitelistForRenderer(): WhitelistFile {
   return {
     sites: whitelist.sites.map((entry) => ({
@@ -856,14 +827,13 @@ export function getProfilesForRenderer(): ProfileSummary[] {
   }));
 }
 
-// Live screen-time snapshot for the toolbar banner / control panel.
+// Live usage-hours snapshot for the toolbar control panel.
 export function getScreenTimeStatus(): ScreenTimeStatus {
   return getScreenTimeStatusRaw();
 }
 
-// Admin surfaces must not burn child screen time: main.ts pauses the ticker
-// while the escape/extend dialogs and admin console are open and resumes on
-// close.
+// Admin surfaces must not burn child sign-in time: main.ts pauses the ticker
+// while the escape dialog / admin console are open and resumes on close.
 export function pauseScreenTimeForAdmin(): void {
   pauseScreenTime();
 }
