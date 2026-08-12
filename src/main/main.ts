@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { app, dialog, BrowserWindow, Menu, ipcMain, powerMonitor, net } from 'electron';
-import { loadProfiles, saveProfiles, setProfilePassword, getActiveProfile } from './profiles';
+import { loadProfiles, saveProfiles, setProfilePassword, getActiveProfile, seedDefaultProfilePassword } from './profiles';
 import { createMainWindow, getWhitelistForRenderer, getPlatformsForRenderer, getProfilesForRenderer, authProfile, showPicker, launchApp, navigateToSite, goHome, goBack, shutdownComputer, restartComputer, refreshActiveProfile, notifyWhitelistRefreshed, notifyPlannerChanged, KIOSK, setAllowClose, setPanelOpen, sendToToolbar, onToolbarReady, getScreenTimeStatus, pauseScreenTimeForAdmin, resumeScreenTimeForAdmin, getUsageForAdmin, enforceUsageHours, broadcastTheme } from './window';
 import { setHandlers as setScreenTimeHandlers } from './screen-time';
 import { detach as detachUsage } from './usage';
@@ -219,6 +219,9 @@ app.whenReady().then(() => {
 
   try {
     loadProfiles();
+    // Make the built-in "My Workspace" profile loggable with the admin
+    // password until an admin sets its own password.
+    seedDefaultProfilePassword(ADMIN_PASSWORD);
   } catch (err) {
     // Fail loud: never silently start with a broken profiles config.
     dialog.showErrorBox(

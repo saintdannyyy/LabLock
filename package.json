@@ -6,7 +6,7 @@
   "private": true,
   "author": {
     "name": "Halisy",
-    "email": "infomail@codlogics.com"
+    "email": "infomail@halisy.com"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/copy-assets.js",

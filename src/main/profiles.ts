@@ -114,6 +114,23 @@ export function setProfilePassword(profileId: string, password: string): SaveRes
   return { ok: true, path: file };
 }
 
+// Give the built-in "default" profile a known login password so it can be
+// picked at boot without an admin setting one first. Re-runs every startup but
+// only acts while the default profile still has NO password configured (so an
+// admin-set password is never clobbered). No-op (null) when there is no
+// default profile or it already has a password.
+export function seedDefaultProfilePassword(password: string): SaveResult | null {
+  let profilesFile: ProfilesFile;
+  try {
+    profilesFile = loadProfiles();
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+  const def = profilesFile.profiles.find((p) => p.id === 'default');
+  if (!def || profileHasPassword(def)) return null;
+  return setProfilePassword(def.id, password);
+}
+
 // The web-only subset of a profile's platforms, shaped for the whitelist
 // matchers (isUrlAllowed / isFrameUrlAllowed) and the toolbar tabs.
 export function webApps(profile: Profile): WhitelistEntry[] {
