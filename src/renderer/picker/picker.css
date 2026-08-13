@@ -132,6 +132,10 @@ html, body {
   width: 100%;
 }
 
+.login-panel[hidden] {
+  display: none;
+}
+
 .login-card {
   display: flex;
   flex-direction: column;

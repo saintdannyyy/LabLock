@@ -24,9 +24,11 @@ const IPC = {
 } as const;
 
 contextBridge.exposeInMainWorld('escapeAPI', {
-  sendPasswordResult: (password: string): void => {
-    ipcRenderer.send('escape:password-result', password);
-  },
+  // Inline-feedback auth (mirrors the profile picker): the main process replies
+  // with { ok, error? } so a wrong password keeps the dialog open for a retry
+  // instead of a native error box.
+  sendPasswordResult: (password: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('escape:password-result', password),
   // UI theme mirror (escape dialog + admin console both load this preload).
   getTheme: (): Promise<'light' | 'dark'> => ipcRenderer.invoke(IPC.THEME_GET),
   onThemeChanged: (callback: (theme: 'light' | 'dark') => void): void => {

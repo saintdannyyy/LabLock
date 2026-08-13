@@ -24,10 +24,22 @@
   let submitted = false;
   let passwordVisible = false;
 
-  function submit(): void {
+  function showError(message: string): void {
+    input.classList.add('error');
+    error.textContent = message;
+    error.classList.add('visible');
+  }
+
+  async function submit(): Promise<void> {
     if (submitted) return;
     submitted = true;
-    send(input.value);
+    const result = await send(input.value).catch(() => ({ ok: false, error: 'Sign-in failed. Please try again.' }));
+    if (result && result.ok) return; // main is morphing this window into the admin console
+    // Wrong password (or cancel): stay open, show the error inline, allow a retry.
+    submitted = false;
+    showError(result?.error || 'Incorrect password. Please try again.');
+    input.focus();
+    input.select();
   }
 
   function clearError(): void {

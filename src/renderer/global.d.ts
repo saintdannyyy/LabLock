@@ -73,7 +73,7 @@ declare global {
     // Exposed by escape-preload.ts (admin escape dialog + admin console)
     // via contextBridge.
     escapeAPI: {
-      sendPasswordResult(password: string): void;
+      sendPasswordResult(password: string): Promise<{ ok: boolean; error?: string }>;
       getTheme?(): Promise<'light' | 'dark'>;
       onThemeChanged?(callback: (theme: 'light' | 'dark') => void): void;
     };

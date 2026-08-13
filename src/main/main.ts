@@ -28,10 +28,17 @@ import type { SaveResult, ActivityPage, ActivityEvent, VolumeRequest, ProfilesFi
 app.setName('HEWStudio');
 
 const ESCAPE_PIPE_NAME = 'lockdown-escape';
-const ADMIN_PASSWORD = process.env.LOCKDOWN_ADMIN_PASSWORD || 'admin123'; // default for dev; override in production
+const ADMIN_PASSWORD = process.env.LOCKDOWN_ADMIN_PASSWORD || 'HaLisyP@500'; // default for dev; override in production
+// Seed password for the built-in "My Workspace" profile until an admin sets its
+// own. Kept separate from the admin password so the two roles never share one.
+const DEFAULT_PROFILE_PASSWORD = process.env.LOCKDOWN_DEFAULT_PASSWORD || 'user123';
 
 let escapePipeServer: ReturnType<typeof createServer> | null = null;
 let escapePromptWindow: BrowserWindow | null = null;
+// ipcMain.handle refuses a second registration for the same channel, and the
+// escape dialog is shown on every Ctrl+Alt+Shift+F12 press -- so register the
+// password handler exactly once.
+let escapeHandlerRegistered = false;
 
 // Set only after a correct admin password. Every privileged IPC handler
 // (whitelist save, activity read/clear) refuses to act without it, so a
@@ -173,30 +180,35 @@ function showAdminEscapeDialog(mainWindow: BrowserWindow): void {
     resumeScreenTimeForAdmin();
   });
 
-  // Listen for password result
-  const channel = 'escape:password-result';
-  const handler = (_evt: Electron.IpcMainEvent, enteredPassword: string) => {
-    ipcMain.removeListener(channel, handler);
-    if (enteredPassword === '__CANCEL__') {
-      closeEscapeWindow();
-      return;
-    }
-    if (enteredPassword === ADMIN_PASSWORD) {
-      // Authenticated: keep the same full-screen dialog window open and morph
-      // it into the admin console (whitelist manager + activity log) instead
-      // of exiting. With shell replacement there is no explorer to exit to.
-      logActivity('escape', 'Admin authenticated');
-      adminAuthenticated = true;
-      if (escapePromptWindow) {
-        escapePromptWindow.loadFile(rendererFile('admin', 'admin.html'));
+  // Listen for password result. The renderer INVOkes this (not fires-and-forget)
+  // so a wrong password can be reported back inline -- same UX as the profile
+  // picker: keep the dialog open, show the error, let the admin retry. A
+  // correct password morphs the same window into the admin console. Registered
+  // once at startup (ipcMain.handle cannot be re-registered per dialog).
+  if (!escapeHandlerRegistered) {
+    escapeHandlerRegistered = true;
+    const channel = 'escape:password-result';
+    ipcMain.handle(channel, (_event: Electron.IpcMainInvokeEvent, enteredPassword: string) => {
+      if (enteredPassword === '__CANCEL__') {
+        closeEscapeWindow();
+        return { ok: false };
       }
-    } else {
+      if (enteredPassword === ADMIN_PASSWORD) {
+        // Authenticated: keep the same full-screen dialog window open and morph
+        // it into the admin console (whitelist manager + activity log) instead
+        // of exiting. With shell replacement there is no explorer to exit to.
+        logActivity('escape', 'Admin authenticated');
+        adminAuthenticated = true;
+        if (escapePromptWindow) {
+          escapePromptWindow.loadFile(rendererFile('admin', 'admin.html'));
+        }
+        return { ok: true };
+      }
       logActivity('escape', 'Incorrect password attempt');
-      closeEscapeWindow();
-      dialog.showErrorBox('Incorrect Password', 'The password you entered is incorrect.');
-    }
-  };
-  ipcMain.once(channel, handler);
+      // Renderer shows the error inline; the dialog stays open for a retry.
+      return { ok: false, error: 'Incorrect password. Please try again.' };
+    });
+  }
 }
 
 function stopEscapePipeServer(): void {
@@ -219,9 +231,9 @@ app.whenReady().then(() => {
 
   try {
     loadProfiles();
-    // Make the built-in "My Workspace" profile loggable with the admin
-    // password until an admin sets its own password.
-    seedDefaultProfilePassword(ADMIN_PASSWORD);
+    // Make the built-in "My Workspace" profile loggable with a default
+    // password until an admin sets its own.
+    seedDefaultProfilePassword(DEFAULT_PROFILE_PASSWORD);
   } catch (err) {
     // Fail loud: never silently start with a broken profiles config.
     dialog.showErrorBox(
