@@ -8,6 +8,7 @@ type UiState = {
   activeSiteUrl: string | null;
   kiosk: boolean;
   profile: { id: string; name: string; avatarColor: string; skinColor: string } | null;
+  sidebarCollapsed: boolean;
 };
 
 type BatteryState = 'discharging' | 'charging' | 'full' | 'ac' | 'unknown';
@@ -37,6 +38,8 @@ const backBtn = document.getElementById('back-btn') as HTMLButtonElement | null;
 const tabsEl = document.getElementById('site-tabs') as HTMLElement | null;
 const profileChip = document.getElementById('profile-chip') as HTMLButtonElement | null;
 const profileChipAvatar = document.getElementById('profile-chip-avatar') as HTMLElement | null;
+const sidebarToggle = document.getElementById('sidebar-toggle') as HTMLButtonElement | null;
+const sidebarToggleLabel = document.getElementById('sidebar-toggle-label') as HTMLElement | null;
 
 const clusterEl = document.getElementById('status-cluster') as HTMLElement | null;
 const panelEl = document.getElementById('status-panel') as HTMLElement | null;
@@ -704,6 +707,19 @@ function renderProfileChip(profile: UiState['profile']): void {
   }
 }
 
+// Planner sidebar toggle. Only shown while a profile is active (the picker has
+// no sidebar); the label/icon flip with the collapsed state.
+function renderSidebarToggle(state: UiState): void {
+  if (sidebarToggle) sidebarToggle.hidden = !state.profile;
+  if (sidebarToggle) {
+    const collapsed = state.sidebarCollapsed;
+    sidebarToggle.setAttribute('aria-pressed', collapsed ? 'false' : 'true');
+    sidebarToggle.setAttribute('aria-label', collapsed ? 'Show the planner sidebar' : 'Hide the planner sidebar');
+    sidebarToggle.title = collapsed ? 'Show the planner sidebar' : 'Hide the planner sidebar';
+  }
+  if (sidebarToggleLabel) sidebarToggleLabel.textContent = state.sidebarCollapsed ? 'Show Plan' : 'Plan';
+}
+
 function applyUiState(state: UiState): void {
   if (state.pane !== lastPane) closePanels();
   lastPane = state.pane;
@@ -715,6 +731,7 @@ function applyUiState(state: UiState): void {
     backBtn.disabled = !state.canGoBack;
   }
   renderProfileChip(state.profile);
+  renderSidebarToggle(state);
   if (tabsEl) {
     // Tabs only make sense while a site is on screen; on the home grid the
     // tiles are right there and on the blocked screen there's no active site.
@@ -731,6 +748,11 @@ function applyUiState(state: UiState): void {
 document.getElementById('home-btn')?.addEventListener('click', () => {
   closePanels();
   window.lockdown.goHome();
+});
+
+sidebarToggle?.addEventListener('click', () => {
+  closePanels();
+  window.lockdown.toggleSidebar?.();
 });
 
 profileChip?.addEventListener('click', () => {

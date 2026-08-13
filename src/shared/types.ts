@@ -172,6 +172,9 @@ export interface UiState {
   activeSiteUrl: string | null;
   kiosk: boolean;
   profile: { id: string; name: string; avatarColor: string; skinColor: string } | null;
+  // Whether the planner sidebar is collapsed (toolbar toggle). Only meaningful
+  // while a profile is active — the picker always hides the sidebar.
+  sidebarCollapsed: boolean;
 }
 
 // Per-platform screen-time usage for one profile on one day, as reported to the
@@ -287,6 +290,7 @@ export const IPC = {
   GET_SYSTEM_STATUS: 'lockdown:get-system-status',
   SET_VOLUME: 'lockdown:set-volume',
   PANEL_RESIZE: 'lockdown:panel-resize',
+  TOGGLE_SIDEBAR: 'lockdown:toggle-sidebar', // toolbar -> main: collapse/expand the planner sidebar
   // Main-process push of a fresh SystemStatus (icons/panel data). `volume` is
   // absent (probe skipped) so the renderer keeps its last volume view.
   SYSTEM_STATUS: 'lockdown:system-status',

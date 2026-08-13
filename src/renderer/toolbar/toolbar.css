@@ -218,6 +218,35 @@ body {
   cursor: default;
 }
 
+/* Planner sidebar toggle — outline pill that fills while the sidebar is open
+   (aria-pressed=true) so the toolbar reflects the sidebar's state at a glance. */
+#sidebar-toggle {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: none;
+  padding: 0 var(--space-4);
+}
+
+#sidebar-toggle:hover {
+  background: var(--color-surface-hover);
+  box-shadow: var(--shadow-1);
+}
+
+#sidebar-toggle:active {
+  background: var(--color-surface-variant);
+}
+
+#sidebar-toggle[aria-pressed="true"] {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-color: transparent;
+}
+
+#sidebar-toggle[aria-pressed="true"]:hover {
+  background: var(--color-primary-hover);
+}
+
 /* ==========================================================================
    Control panel (status cluster + dropdown)
    ========================================================================== */

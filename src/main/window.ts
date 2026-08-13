@@ -20,6 +20,19 @@ const TOOLBAR_HEIGHT = 48;
 // The child's Calendar/Timetable/To-dos panels live here, Apple-style.
 const SIDEBAR_WIDTH = 280;
 
+// Whether the planner sidebar is currently collapsed (toolbar toggle). While
+// collapsed the sidebar view is hidden and the content/site views take the full
+// width. In-memory only — resets to expanded on every app start.
+let sidebarCollapsed = false;
+
+// Toggle the planner sidebar collapsed/expanded, re-layout the views and tell
+// the toolbar so its toggle button reflects the new state.
+export function toggleSidebar(): void {
+  sidebarCollapsed = !sidebarCollapsed;
+  layoutViews();
+  pushUiState();
+}
+
 // Phase 2 lockdown mode. Active in any packaged (production) build, and
 // additionally forceable in dev via LOCKDOWN_KIOSK=1 so the real locked
 // window can be exercised on a dev machine without building an installer.
@@ -476,9 +489,10 @@ function layoutViews(): void {
   // content views shift right of it. On the picker (no active profile) it hides
   // so the picker gets the full width.
   const hasProfile = getActiveProfile() !== null;
-  const sidebarWidth = hasProfile ? SIDEBAR_WIDTH : 0;
+  const sidebarVisible = hasProfile && !sidebarCollapsed;
+  const sidebarWidth = sidebarVisible ? SIDEBAR_WIDTH : 0;
   sidebarView.setBounds({ x: 0, y: TOOLBAR_HEIGHT, width: SIDEBAR_WIDTH, height: Math.max(height - TOOLBAR_HEIGHT, 0) });
-  sidebarView.setVisible(hasProfile);
+  sidebarView.setVisible(sidebarVisible);
 
   const paneBounds = { x: sidebarWidth, y: TOOLBAR_HEIGHT, width: Math.max(width - sidebarWidth, 0), height: Math.max(height - TOOLBAR_HEIGHT, 0) };
   contentView.setBounds(paneBounds);
@@ -568,6 +582,7 @@ function pushUiState(): void {
     activeSiteUrl,
     kiosk: KIOSK,
     profile: active ? { id: active.id, name: active.name, avatarColor: active.avatarColor, skinColor: active.skinColor } : null,
+    sidebarCollapsed,
   };
   toolbarView.webContents.send(IPC.UI_STATE, state);
 }

@@ -53,6 +53,7 @@ declare global {
       getSystemStatus?(includeVolume: boolean): Promise<SystemStatus>;
       setVolume?(req: VolumeRequest): Promise<VolumeStatus>;
       setPanelOpen?(open: boolean): void;
+      toggleSidebar?(): void;
       switchProfile?(): void;
       getPlanner?(): Promise<PlannerFile>;
       saveTodos?(todos: PlannerTodo[]): Promise<SaveResult>;

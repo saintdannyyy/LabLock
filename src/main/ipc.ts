@@ -16,6 +16,7 @@ interface WindowControls {
   goBack(): void;
   shutdownComputer(): void;
   restartComputer(): void;
+  toggleSidebar(): void;
 }
 
 export function registerIpcHandlers(controls: WindowControls): void {
@@ -32,4 +33,5 @@ export function registerIpcHandlers(controls: WindowControls): void {
   ipcMain.on(IPC.BACK, () => controls.goBack());
   ipcMain.on(IPC.SHUTDOWN, () => controls.shutdownComputer());
   ipcMain.on(IPC.RESTART, () => controls.restartComputer());
+  ipcMain.on(IPC.TOGGLE_SIDEBAR, () => controls.toggleSidebar());
 }
