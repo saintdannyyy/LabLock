@@ -6,6 +6,10 @@ export interface WhitelistEntry {
   url: string;
   icon?: string;
   allowedHosts?: string[];
+  // When true, the entry's host AND every "*.host" subdomain are allowed
+  // (a "google.com" entry covers docs.google.com / drive.google.com / meet)
+  // without the admin enumerating each subdomain. Dot-anchored, same as "*.".
+  allowSubdomains?: boolean;
   // Hosts allowed ONLY inside iframes on whitelisted pages (YouTube/Google
   // Maps/Disqus embeds, etc.). Never browseable as a top-level page: main-frame
   // navigation, redirects, popups and tiles all ignore this list.
@@ -24,6 +28,7 @@ export interface PlatformEntry {
   // web platforms:
   url?: string;
   allowedHosts?: string[];
+  allowSubdomains?: boolean;
   embedHosts?: string[];
   // native platforms:
   exe?: string;
@@ -117,6 +122,30 @@ export interface NavigateResult {
 // Result of a whitelist/profiles save. `path` is the config file written.
 export type SaveResult = { ok: true; path: string } | { ok: false; error: string };
 
+// Cloudflare content-filter configuration (<userData>/filter.json). When
+// enabled, any request whose host ISN'T strictly whitelisted (the loose zone:
+// iframes and third-party subresources on approved sites) is checked against a
+// Cloudflare DoH resolver and cancelled if its policy blocks it. Top-level
+// browsing stays on the strict whitelist -- the filter never licenses a page.
+export type ContentFilterMode = 'families' | 'gateway';
+
+export interface ContentFilterConfig {
+  enabled: boolean;
+  // 'families' = built-in 1.1.1.1 Families resolver (malware + adult, zero
+  // setup). 'gateway' = the admin's Zero Trust Gateway DoH endpoint, which
+  // adds dashboard-managed categories (gambling/betting, etc.).
+  mode: ContentFilterMode;
+  gatewayDoH?: string;
+}
+
+// Result of the admin console's "Test a domain" lookup against the live filter.
+export interface FilterTestResult {
+  ok: boolean;
+  allowed: boolean;
+  host: string;
+  detail: string;
+}
+
 // Every logged user/admin action. `ts` is an ISO timestamp; `kind` drives the
 // activity-log badge/filter; `url` is the URL involved when there is one;
 // `detail` is a short human-readable description; `profile` is the active
@@ -128,6 +157,7 @@ export type ActivityKind =
   | 'home'
   | 'back'
   | 'blocked'
+  | 'filter-block'
   | 'power'
   | 'escape'
   | 'whitelist-save'
@@ -307,6 +337,10 @@ export const IPC = {
   RESET_REQUESTS_GET: 'lockdown:reset-requests-get',
   RESET_REQUESTS_CLEAR: 'lockdown:reset-requests-clear',
   PROFILE_SET_PASSWORD: 'lockdown:profile-set-password',
+  // Cloudflare content filter (machine-global, admin console -> main)
+  FILTER_GET: 'lockdown:filter-get',
+  FILTER_SAVE: 'lockdown:filter-save',
+  FILTER_TEST: 'lockdown:filter-test',
   // Admin console -> main: enumerate installed programs (Start Menu) so native
   // platforms can be granted by picking from a list instead of typing a path.
   INSTALLED_APPS_GET: 'lockdown:installed-apps-get',

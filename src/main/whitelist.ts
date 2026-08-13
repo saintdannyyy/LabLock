@@ -113,6 +113,14 @@ function validateEntry(entry: unknown, index: number): WhitelistEntry {
     allowedHosts = rules;
   }
 
+  let allowSubdomains: boolean | undefined;
+  if (e.allowSubdomains !== undefined) {
+    if (typeof e.allowSubdomains !== 'boolean') {
+      throw new Error(`Whitelist entry #${index} ("${e.name}") "allowSubdomains" must be a boolean.`);
+    }
+    allowSubdomains = e.allowSubdomains;
+  }
+
   let embedHosts: string[] | undefined;
   if (e.embedHosts !== undefined) {
     if (!Array.isArray(e.embedHosts) || !e.embedHosts.every((h) => typeof h === 'string')) {
@@ -132,6 +140,7 @@ function validateEntry(entry: unknown, index: number): WhitelistEntry {
     url: e.url,
     icon: typeof e.icon === 'string' ? e.icon : undefined,
     allowedHosts,
+    allowSubdomains,
     embedHosts,
   };
 }
@@ -187,6 +196,22 @@ function hostAllowedByAnyEntry(host: string, whitelist: WhitelistEntry[], includ
 
     if (rules.some((rule) => hostMatchesRule(host, rule))) {
       return true;
+    }
+
+    // allowSubdomains: the entry's own host plus every "*.host" subdomain is
+    // allowed, so a single "google.com" entry covers docs/drive/meet.google.com
+    // without the admin enumerating each. Dot-anchored suffix -- identical to
+    // the "*." wildcard semantics, so "notgoogle.com" can never match.
+    if (entry.allowSubdomains) {
+      let base: string;
+      try {
+        base = normalizeHost(new URL(entry.url).hostname);
+      } catch {
+        base = '';
+      }
+      if (base !== '' && (host === base || host.endsWith('.' + base))) {
+        return true;
+      }
     }
 
     // embedHosts only ever license sub-frame (iframe) loads, never top-level

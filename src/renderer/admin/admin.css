@@ -374,6 +374,53 @@ body {
   background: #fce8e6;
 }
 
+/* ---------- Cloudflare content filter (Content Filter tab) ---------- */
+
+.filter-card {
+  margin-top: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 720px;
+}
+
+.filter-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.filter-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.filter-row .modal-checkbox {
+  margin-top: 0;
+}
+
+.filter-row .kind-option {
+  font-size: 13px;
+}
+
+#filter-test-domain {
+  flex: 1;
+  min-width: 220px;
+}
+
 /* ---------- Activity list ---------- */
 
 .admin-search,

@@ -13,6 +13,7 @@
     kind: 'web' | 'native';
     url?: string;
     allowedHosts?: string[];
+    allowSubdomains?: boolean;
     embedHosts?: string[];
     exe?: string;
     args?: string[];
@@ -76,6 +77,7 @@
   const tabSites = document.getElementById('tab-sites') as HTMLElement | null;
   const tabUsage = document.getElementById('tab-usage') as HTMLElement | null;
   const tabActivity = document.getElementById('tab-activity') as HTMLElement | null;
+  const tabFilter = document.getElementById('tab-filter') as HTMLElement | null;
   const tabBtns = Array.from(document.querySelectorAll<HTMLButtonElement>('.admin-tab'));
   const usageProfileSelect = document.getElementById('usage-profile-select') as HTMLSelectElement | null;
   const usageDateEl = document.getElementById('usage-date') as HTMLElement | null;
@@ -118,6 +120,20 @@
   const appsHint = document.getElementById('apps-hint') as HTMLElement | null;
   const editError = document.getElementById('edit-error') as HTMLElement | null;
   const modalCancelBtn = document.getElementById('modal-cancel-btn') as HTMLButtonElement | null;
+  const fAllowSubdomains = document.getElementById('edit-allow-subdomains') as HTMLInputElement | null;
+
+  // Cloudflare content filter (Content Filter tab, machine-global config)
+  const filterEnabled = document.getElementById('filter-enabled') as HTMLInputElement | null;
+  const filterModeFamilies = document.getElementById('filter-mode-families') as HTMLInputElement | null;
+  const filterModeGateway = document.getElementById('filter-mode-gateway') as HTMLInputElement | null;
+  const filterGatewayField = document.getElementById('filter-gateway-field') as HTMLElement | null;
+  const filterGatewayDoH = document.getElementById('filter-gateway-doh') as HTMLInputElement | null;
+  const filterTestDomain = document.getElementById('filter-test-domain') as HTMLInputElement | null;
+  const filterTestBtn = document.getElementById('filter-test-btn') as HTMLButtonElement | null;
+  const filterTestResult = document.getElementById('filter-test-result') as HTMLElement | null;
+  const filterSaveBtn = document.getElementById('filter-save-btn') as HTMLButtonElement | null;
+  const filterStatus = document.getElementById('filter-status') as HTMLElement | null;
+  const filterDiscardBtn = document.getElementById('filter-discard-btn') as HTMLButtonElement | null;
 
   const profileModal = document.getElementById('profile-modal') as HTMLElement | null;
   const profileForm = document.getElementById('profile-form') as HTMLFormElement | null;
@@ -189,6 +205,14 @@
 
   let usageSnapshot: UsageSnapshot | null = null;
 
+  type ContentFilterConfig = {
+    enabled: boolean;
+    mode: 'families' | 'gateway';
+    gatewayDoH?: string;
+  };
+
+  let filterConfig: ContentFilterConfig = { enabled: false, mode: 'families' };
+
   function localDateKey(d: Date): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
@@ -238,6 +262,7 @@
     if (tabUsage) tabUsage.hidden = name !== 'usage';
     if (tabPlanner) tabPlanner.hidden = name !== 'planner';
     if (tabActivity) tabActivity.hidden = name !== 'activity';
+    if (tabFilter) tabFilter.hidden = name !== 'filter';
     if (name === 'usage') loadUsage().catch(() => {});
     if (name === 'planner') loadPlannerData().catch(() => {});
   }
@@ -570,10 +595,16 @@
       url.textContent = platform.kind === 'web' ? (platform.url ?? '') : (platform.exe ?? '');
       main.appendChild(url);
 
-      if (platform.kind === 'web' && platform.allowedHosts && platform.allowedHosts.length > 0) {
+      if (platform.kind === 'web' && ((platform.allowedHosts && platform.allowedHosts.length > 0) || platform.allowSubdomains)) {
         const hosts = document.createElement('div');
         hosts.className = 'site-hosts';
-        for (const host of platform.allowedHosts) {
+        if (platform.allowSubdomains) {
+          const chip = document.createElement('span');
+          chip.className = 'host-chip';
+          chip.textContent = 'All subdomains';
+          hosts.appendChild(chip);
+        }
+        for (const host of platform.allowedHosts ?? []) {
           const chip = document.createElement('span');
           chip.className = 'host-chip';
           chip.textContent = host;
@@ -776,6 +807,7 @@
     if (fUrl) fUrl.value = platform?.url ?? '';
     if (fHosts) fHosts.value = (platform?.allowedHosts ?? []).join('\n');
     if (fEmbedHosts) fEmbedHosts.value = (platform?.embedHosts ?? []).join('\n');
+    if (fAllowSubdomains) fAllowSubdomains.checked = platform?.allowSubdomains === true;
     if (fIcon) {
       // Auto-extracted native logos are data URLs; keep them out of the manual
       // field so admins only see the field when they actually want to override.
@@ -892,6 +924,7 @@
       return;
     }
     entry.url = url;
+    if (fAllowSubdomains?.checked) entry.allowSubdomains = true;
     const allowedHosts = (fHosts?.value ?? '')
       .split(/[\n,]/)
       .map((h) => h.trim())
@@ -918,6 +951,84 @@
   });
 
   addSiteBtn?.addEventListener('click', () => openEdit(-1));
+
+  // ---------- Cloudflare content filter ----------
+
+  function renderFilterCard(): void {
+    if (filterEnabled) filterEnabled.checked = filterConfig.enabled;
+    const mode = filterConfig.mode === 'gateway' ? 'gateway' : 'families';
+    if (filterModeGateway) filterModeGateway.checked = mode === 'gateway';
+    if (filterModeFamilies) filterModeFamilies.checked = mode === 'families';
+    if (filterGatewayDoH) filterGatewayDoH.value = filterConfig.gatewayDoH ?? '';
+    if (filterGatewayField) filterGatewayField.hidden = mode !== 'gateway';
+  }
+
+  async function loadFilter(): Promise<void> {
+    try {
+      const config = (await api.getFilter()) as ContentFilterConfig | null;
+      filterConfig = config ?? { enabled: false, mode: 'families' };
+    } catch {
+      filterConfig = { enabled: false, mode: 'families' };
+    }
+    renderFilterCard();
+  }
+
+  filterModeFamilies?.addEventListener('change', () => {
+    if (filterGatewayField) filterGatewayField.hidden = true;
+    if (filterTestResult) filterTestResult.textContent = '';
+  });
+  filterModeGateway?.addEventListener('change', () => {
+    if (filterGatewayField) filterGatewayField.hidden = false;
+    filterGatewayDoH?.focus();
+    if (filterTestResult) filterTestResult.textContent = '';
+  });
+
+  filterTestBtn?.addEventListener('click', async () => {
+    const url = (filterTestDomain?.value ?? '').trim();
+    if (!url) {
+      setStatus(filterTestResult, 'Enter a URL to test.', 'error');
+      return;
+    }
+    setStatus(filterTestResult, 'Testing…');
+    try {
+      const result = (await api.testFilterUrl(url)) as { ok?: boolean; allowed?: boolean; detail?: string } | null | undefined;
+      if (result?.ok) {
+        setStatus(filterTestResult, result.allowed ? `Allowed — ${result.detail}` : `Blocked — ${result.detail}`, result.allowed ? 'success' : 'error');
+      } else {
+        setStatus(filterTestResult, result?.detail ?? 'Test failed.', 'error');
+      }
+    } catch {
+      setStatus(filterTestResult, 'Test failed.', 'error');
+    }
+  });
+
+  filterSaveBtn?.addEventListener('click', async () => {
+    const next: ContentFilterConfig = {
+      enabled: filterEnabled?.checked ?? false,
+      mode: filterModeGateway?.checked ? 'gateway' : 'families',
+    };
+    if (next.mode === 'gateway') {
+      const doh = (filterGatewayDoH?.value ?? '').trim();
+      if (!doh) {
+        setStatus(filterStatus, 'A Gateway DoH URL is required in Gateway mode.', 'error');
+        return;
+      }
+      next.gatewayDoH = doh;
+    }
+    setStatus(filterStatus, 'Saving…');
+    try {
+      const result = (await api.saveFilter(next)) as { ok?: boolean; error?: string } | null | undefined;
+      if (result?.ok) {
+        filterConfig = next;
+        renderFilterCard();
+        setStatus(filterStatus, 'Filter settings saved. Applied live.', 'success');
+      } else {
+        setStatus(filterStatus, result?.error ?? 'Save failed.', 'error');
+      }
+    } catch {
+      setStatus(filterStatus, 'Save failed.', 'error');
+    }
+  });
 
   // The "Save changes" / "Done" footer is repeated on the Sites, Usage and
   // Activity panes; all Save buttons share one save path (they persist the
@@ -1075,7 +1186,7 @@
   });
 
   footerSaveBtns.forEach((b) => b?.addEventListener('click', saveChanges));
-  [discardBtn, usageDiscardBtn, activityDiscardBtn].forEach((b) =>
+  [discardBtn, usageDiscardBtn, activityDiscardBtn, filterDiscardBtn].forEach((b) =>
     b?.addEventListener('click', () => api.close())
   );
 
@@ -1412,6 +1523,7 @@
     home: 'Home',
     back: 'Back',
     blocked: 'Blocked',
+    'filter-block': 'Filter',
     power: 'Power',
     escape: 'Admin',
     'whitelist-save': 'Config',
@@ -1543,6 +1655,7 @@
     renderPlatforms();
     renderDayLabel();
     loadResetRequests().catch(() => {});
+    loadFilter().catch(() => {});
     loadActivityPage(true).catch(() => {
       if (activityList) {
         activityList.replaceChildren();

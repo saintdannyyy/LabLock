@@ -4,6 +4,7 @@
       "name": "J100 Coders",
       "url": "https://j100coders.org/coder",
       "icon": "j100.png",
+      "allowSubdomains": true,
       "allowedHosts": [
         "j100coders.org",
         "*.j100coders.org"
@@ -20,6 +21,7 @@
     {
       "name": "Toddle",
       "url": "https://web.toddleapp.com",
+      "allowSubdomains": true,
       "allowedHosts": [
         "web.toddleapp.com",
         "*.toddleapp.com"

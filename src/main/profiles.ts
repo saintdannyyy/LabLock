@@ -141,6 +141,7 @@ export function webApps(profile: Profile): WhitelistEntry[] {
       url: p.url,
       icon: p.icon,
       allowedHosts: p.allowedHosts,
+      allowSubdomains: p.allowSubdomains,
       embedHosts: p.embedHosts,
     }));
 }
@@ -385,6 +386,13 @@ function validatePlatform(entry: unknown, profileName: string, index: number): P
     throw new Error(`Profile "${profileName}" web app #${index} ("${e.name}") "url" must be http:// or https://.`);
   }
   base.url = e.url;
+
+  if (e.allowSubdomains !== undefined) {
+    if (typeof e.allowSubdomains !== 'boolean') {
+      throw new Error(`Profile "${profileName}" web app #${index} ("${e.name}") "allowSubdomains" must be a boolean.`);
+    }
+    base.allowSubdomains = e.allowSubdomains;
+  }
 
   if (e.allowedHosts !== undefined) {
     if (!Array.isArray(e.allowedHosts) || !e.allowedHosts.every((h) => typeof h === 'string')) {

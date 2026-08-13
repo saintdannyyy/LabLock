@@ -12,12 +12,13 @@ import { startInputHook, stopInputHook } from './input-hook';
 import { getSystemStatus, setSystemVolume } from './system-status';
 import { scanWifi, connectWifi, forgetWifi } from './wifi';
 import { listInstalledApps, listInstalledAppIcons } from './apps';
+import { loadFilterConfig, saveFilterConfig, testDomain } from './content-filter';
 import { getTheme, setTheme, subscribeTheme } from './settings';
 import { preloadFile, rendererFile, watchdogExePath } from './paths';
 import { IPC } from '../shared/types';
 import { createServer } from 'net';
 import { spawn } from 'child_process';
-import type { SaveResult, ActivityPage, ActivityEvent, VolumeRequest, ProfilesFile, PlatformEntry, ScreenTimeStatus, UsageSnapshot, PlannerFile, WifiScanResult, WifiActionResult, WifiConnectRequest, InstalledApp, Theme, ResetRequest } from '../shared/types';
+import type { SaveResult, ActivityPage, ActivityEvent, VolumeRequest, ProfilesFile, PlatformEntry, ScreenTimeStatus, UsageSnapshot, PlannerFile, WifiScanResult, WifiActionResult, WifiConnectRequest, InstalledApp, Theme, ResetRequest, ContentFilterConfig, FilterTestResult } from '../shared/types';
 
 // electron-builder strips `productName` from the packaged package.json inside
 // app.asar, leaving only the lowercase npm `name` ("hewstudio").
@@ -368,6 +369,30 @@ app.whenReady().then(() => {
       notifyWhitelistRefreshed();
     }
     return result;
+  });
+
+  // Cloudflare content filter (machine-global, admin console). Admin-gated
+  // like the other console IPC: the config is read/written only from the
+  // authenticated escape window.
+  ipcMain.handle(IPC.FILTER_GET, (): ContentFilterConfig => {
+    if (!adminAuthenticated) return { enabled: false, mode: 'families' };
+    return loadFilterConfig();
+  });
+
+  ipcMain.handle(IPC.FILTER_SAVE, (_event, payload: unknown): { ok: true } | { ok: false; error: string } => {
+    if (!adminAuthenticated) return { ok: false, error: 'Admin authentication required.' };
+    const result = saveFilterConfig(payload);
+    if (result.ok) {
+      logActivity('whitelist-change', 'Content filter settings saved');
+    }
+    return result;
+  });
+
+  ipcMain.handle(IPC.FILTER_TEST, (_event, url: unknown): Promise<FilterTestResult> => {
+    if (!adminAuthenticated) {
+      return Promise.resolve({ ok: false, allowed: false, host: '', detail: 'Admin authentication required.' });
+    }
+    return testDomain(typeof url === 'string' ? url.trim() : '');
   });
 
   // Installed programs (Start Menu) so the admin can grant a native platform by

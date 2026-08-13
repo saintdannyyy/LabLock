@@ -20,6 +20,7 @@
       <button type="button" class="admin-tab" data-tab="usage" aria-controls="tab-usage">Usage</button>
       <button type="button" class="admin-tab" data-tab="planner" aria-controls="tab-planner">Planner</button>
       <button type="button" class="admin-tab" data-tab="activity" aria-controls="tab-activity">Activity Log</button>
+      <button type="button" class="admin-tab" data-tab="filter" aria-controls="tab-filter">Content Filter</button>
     </nav>
 
     <!-- Pending "forgot password" requests from the picker -->
@@ -46,6 +47,7 @@
           <span class="admin-status">Platforms are restricted to whitelisted approved apps only.</span>
         </div>
         <ul id="sites-list" class="sites-list"></ul>
+
         <div class="pane-footer">
           <button type="button" class="admin-btn admin-btn-save" id="save-btn">Save changes</button>
           <button type="button" class="admin-btn" id="discard-btn">Done</button>
@@ -111,6 +113,7 @@
             <option value="">All types</option>
             <option value="navigate">Navigations</option>
             <option value="blocked">Blocked</option>
+            <option value="filter-block">Filter blocks</option>
             <option value="app-launch">App launches</option>
             <option value="app-exit">App exits</option>
             <option value="profile-switch">Profile switches</option>
@@ -140,6 +143,53 @@
           <span id="activity-footer-status" class="admin-status" aria-live="polite"></span>
           <button type="button" class="admin-btn admin-btn-save" id="activity-save-btn">Save changes</button>
           <button type="button" class="admin-btn" id="activity-discard-btn">Done</button>
+        </div>
+      </section>
+
+      <!-- Cloudflare content filter (machine-global) -->
+      <section id="tab-filter" class="admin-pane" aria-label="Cloudflare content filter" hidden>
+        <div class="filter-card" id="filter-card">
+          <h3 class="filter-title">Cloudflare content filter</h3>
+          <p class="filter-desc">
+            Filters the embedded links and third-party resources (iframes, scripts, images, fonts) that approved sites pull
+            in — so you don't have to list every CDN or embed host. Top-level pages still have to be approved on the Permitted
+            Platforms tab. Blocked categories are chosen in the Cloudflare dashboard; this page just points the kiosk at your
+            resolver.
+          </p>
+          <div class="filter-row">
+            <label class="modal-checkbox">
+              <input type="checkbox" id="filter-enabled">
+              <span>Enable content filter</span>
+            </label>
+          </div>
+          <div class="filter-row" id="filter-mode-row">
+            <span class="modal-field-label">Resolver</span>
+            <label class="kind-option">
+              <input type="radio" name="filter-mode" id="filter-mode-families" value="families">
+              <span>1.1.1.1 Families <span class="field-hint">(free — malware &amp; adult content)</span></span>
+            </label>
+            <label class="kind-option">
+              <input type="radio" name="filter-mode" id="filter-mode-gateway" value="gateway">
+              <span>Zero Trust Gateway <span class="field-hint">(adds gambling/betting &amp; custom categories)</span></span>
+            </label>
+          </div>
+          <div class="modal-field" id="filter-gateway-field" hidden>
+            <label for="filter-gateway-doh">Gateway DoH URL <span class="field-hint">(from Cloudflare Zero Trust → Gateway → Locations)</span></label>
+            <input type="text" id="filter-gateway-doh" autocomplete="off" spellcheck="false" placeholder="https://&lt;org-id&gt;.cloudflare-gateway.com/dns-query">
+          </div>
+          <div class="filter-row">
+            <span class="modal-field-label">Test a domain</span>
+            <input type="text" id="filter-test-domain" class="admin-search" placeholder="https://example.com" autocomplete="off" spellcheck="false" aria-label="Domain to test against the filter">
+            <button type="button" class="admin-btn admin-btn-sm" id="filter-test-btn">Test</button>
+            <span id="filter-test-result" class="admin-status" aria-live="polite"></span>
+          </div>
+          <div class="filter-row">
+            <button type="button" class="admin-btn admin-btn-sm admin-btn-save" id="filter-save-btn">Save filter</button>
+            <span id="filter-status" class="admin-status" aria-live="polite"></span>
+          </div>
+        </div>
+        <div class="pane-footer">
+          <button type="button" class="admin-btn" id="filter-discard-btn">Done</button>
         </div>
       </section>
     </main>
@@ -173,6 +223,10 @@
       <div class="modal-field web-only" id="field-hosts">
         <label for="edit-hosts">Allowed hosts <span class="field-hint">(bare hostnames only — no URLs or paths, one per line; the main site is always allowed)</span></label>
         <textarea id="edit-hosts" rows="3" spellcheck="false" placeholder="example.com&#10;*.example.com"></textarea>
+        <label class="modal-checkbox">
+          <input type="checkbox" id="edit-allow-subdomains">
+          <span>Allow all subdomains of this site <span class="field-hint">(a “google.com” entry then covers docs.google.com, drive.google.com, meet, …)</span></span>
+        </label>
       </div>
       <div class="modal-field web-only" id="field-embed-hosts">
         <label for="edit-embed-hosts">Embed-only hosts <span class="field-hint">(one per line — allowed inside iframes, never browseable as a page)</span></label>

@@ -56,6 +56,7 @@ src/main/screen-time.ts   # per-profile daily limit tracker + usage-hours window
 src/main/planner.ts       # per-profile planner storage (events/timetable/todos), <userData>/planner-<profileId>.json
 src/main/wifi.ts          # toolbar Wi-Fi panel: netsh wlan scan/connect/forget (needs elevation)
 src/main/apps.ts          # installed-app enumeration (Start Menu .lnk) for the native-platform picker
+src/main/content-filter.ts # Cloudflare DoH content filter (Families or Zero Trust Gateway) for the "loose zone"; RFC 8484 wire-format client, blocks 0.0.0.0/:: and NXDOMAIN
 src/preload/escape-preload.ts # sandboxed preload for escape dialog + admin console (escapeAPI + adminAPI)
 src/preload/sidebar-preload.ts # sandboxed preload for the planner sidebar (getPlanner, saveTodos, theme, refresh events)
 src/renderer/admin/       # admin console (Sites + Usage + Planner + Activity tabs), loaded by morphing the escape window

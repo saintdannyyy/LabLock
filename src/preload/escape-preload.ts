@@ -18,6 +18,9 @@ const IPC = {
   RESET_REQUESTS_GET: 'lockdown:reset-requests-get',
   RESET_REQUESTS_CLEAR: 'lockdown:reset-requests-clear',
   PROFILE_SET_PASSWORD: 'lockdown:profile-set-password',
+  FILTER_GET: 'lockdown:filter-get',
+  FILTER_SAVE: 'lockdown:filter-save',
+  FILTER_TEST: 'lockdown:filter-test',
   ADMIN_CLOSE: 'lockdown:admin-close',
   THEME_GET: 'lockdown:theme-get',
   THEME_CHANGED: 'lockdown:theme-changed',
@@ -51,5 +54,8 @@ contextBridge.exposeInMainWorld('adminAPI', {
   clearResetRequests: (profileId?: string): Promise<unknown> => ipcRenderer.invoke(IPC.RESET_REQUESTS_CLEAR, profileId ?? ''),
   setProfilePassword: (profileId: string, password: string): Promise<unknown> =>
     ipcRenderer.invoke(IPC.PROFILE_SET_PASSWORD, profileId, password),
+  getFilter: (): Promise<unknown> => ipcRenderer.invoke(IPC.FILTER_GET),
+  saveFilter: (config: unknown): Promise<unknown> => ipcRenderer.invoke(IPC.FILTER_SAVE, config),
+  testFilterUrl: (url: string): Promise<unknown> => ipcRenderer.invoke(IPC.FILTER_TEST, url),
   close: (): void => ipcRenderer.send(IPC.ADMIN_CLOSE),
 });

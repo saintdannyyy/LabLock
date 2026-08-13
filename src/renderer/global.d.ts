@@ -17,6 +17,8 @@ import type {
   WifiActionResult,
   InstalledApp,
   ResetRequest,
+  ContentFilterConfig,
+  FilterTestResult,
 } from '../shared/types';
 
 export {};
@@ -90,6 +92,9 @@ declare global {
       getResetRequests(): Promise<ResetRequest[]>;
       clearResetRequests(profileId?: string): Promise<{ ok: boolean }>;
       setProfilePassword(profileId: string, password: string): Promise<SaveResult>;
+      getFilter(): Promise<ContentFilterConfig>;
+      saveFilter(config: ContentFilterConfig): Promise<{ ok: boolean; error?: string }>;
+      testFilterUrl(url: string): Promise<FilterTestResult>;
       close(): void;
     };
   }

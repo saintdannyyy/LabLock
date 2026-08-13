@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import * as path from 'path';
 import type { ChildProcess } from 'child_process';
 import { attachNavigationGuard } from './navigation-guard';
+import { installContentFilter, loadFilterConfig } from './content-filter';
 import { preloadFile, rendererFile, iconFileUrl } from './paths';
 import { isUrlAllowed } from './whitelist';
 import { getActiveProfile, setActiveProfile, loadProfiles, webApps, verifyProfilePassword, profileHasPassword } from './profiles';
@@ -407,7 +408,14 @@ export function createMainWindow(): BrowserWindow {
   loaderView.webContents.loadFile(rendererFile('loading', 'loading.html'));
   loaderView.setVisible(false);
 
-  attachNavigationGuard(siteView.webContents, () => whitelist.sites, showBlocked);
+  attachNavigationGuard(siteView.webContents, () => whitelist.sites, showBlocked, () => loadFilterConfig().enabled);
+
+  // Cloudflare content filter: with the whitelist loosened for embedded
+  // content AND top-level navigation (the "loose policy"), this is the middle
+  // man that cancels any request -- iframe, subresource or main frame -- whose
+  // host its policy blocks (adult, gambling/betting, malware, ...). Strictly
+  // whitelisted hosts bypass the lookup entirely (no DoH latency).
+  installContentFilter(() => whitelist.sites, (url) => logActivity('filter-block', 'Content filter blocked', url));
 
   // The loading skeleton is raised by navigateToSite() (a tile click) and
   // hidden as soon as the new page's MAIN frame commits -- did-frame-navigate
@@ -425,6 +433,13 @@ export function createMainWindow(): BrowserWindow {
   // too -- the Chromium error page is shown instead of a forever-spinner.
   siteView.webContents.on('did-fail-load', (_event, _code, _desc, _url, isMainFrame) => {
     if (isMainFrame && pane === 'loading') setPane('site');
+  });
+
+  // Loose policy: when the Cloudflare filter cancels a non-whitelisted
+  // top-level load, the request fails with ERR_BLOCKED_BY_CLIENT (-32000).
+  // Turn that into the normal blocked screen instead of Chromium's error page.
+  siteView.webContents.on('did-fail-load', (_event, code, _desc, url, isMainFrame) => {
+    if (isMainFrame && code === -32000) showBlocked(url);
   });
 
   siteView.webContents.on('did-navigate', (_event, url) => {

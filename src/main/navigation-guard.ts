@@ -9,49 +9,73 @@ interface NavigationDetails {
 }
 
 /**
- * Wires the single site-content WebContents to block any navigation whose
- * hostname isn't on the whitelist. This is the only place navigation
- * restrictions are enforced -- every event handler here defers to
- * isUrlAllowed() so the matching rules never drift between call sites.
+ * Wires the single site-content WebContents to restrict navigation. There are
+ * two gates, depending on whether the Cloudflare content filter is enabled
+ * (the "loose policy"):
  *
- * Frames and top-level pages are treated differently on purpose:
- *  - Main-frame navigation, redirects and window.open must pass the STRICT
- *    check (isUrlAllowed) -- embedHosts never license a browseable page.
- *  - Sub-frame (iframe) navigation may also match isFrameUrlAllowed, which
- *    additionally honors embedHosts so a whitelisted page can embed
- *    YouTube/Google Maps/Disqus without making those hosts browseable.
+ *  - Loose policy OFF: the whitelist is the ONLY gate. Main-frame
+ *    navigation, redirects and window.open must pass isUrlAllowed(); anything
+ *    else is blocked. This is the strict, whitelist-only kiosk.
+ *  - Loose policy ON: the whitelist still hard-allows its hosts with zero
+ *    latency, but a non-whitelisted http(s) top-level target is NOT blocked
+ *    here -- it proceeds to the network layer, where content-filter.ts's
+ *    onBeforeRequest judges it against Cloudflare and cancels it if the
+ *    policy blocks it (surfacing as a did-fail-load ERR_BLOCKED_BY_CLIENT ->
+ *    blocked screen in window.ts). Whitelisted tiles stay the home grid; the
+ *    filter becomes the top-level gate.
+ *
+ * Sub-frames follow the same pattern: isFrameUrlAllowed (honoring embedHosts)
+ * passes instantly, unknown iframe hosts pass through in loose mode for
+ * Cloudflare to judge, and are blocked synchronously when the filter is off.
+ * Non-http(s) schemes are always blocked synchronously at every level.
  *
  * Note (documented limitation): this restricts *navigation* (what page/frame
- * is displayed). It does NOT filter subresource network requests (images,
- * scripts, fetch/XHR, fonts, CSS) -- a whitelisted page can still load
- * third-party subresources in the background. Full network-level filtering
- * would require session.webRequest.onBeforeRequest and is out of scope here.
+ * is displayed). Subresource network requests (images, scripts, fetch/XHR,
+ * fonts, CSS) are judged by the same Cloudflare filter via
+ * session.webRequest.onBeforeRequest (content-filter.ts).
  */
 export function attachNavigationGuard(
   siteWebContents: WebContents,
   getWhitelist: () => WhitelistEntry[],
   onBlocked: (attemptedUrl: string) => void,
+  getLoosePolicy?: () => boolean,
 ): void {
-  const strictGuard = (details: NavigationDetails): void => {
-    if (!isUrlAllowed(details.url, getWhitelist())) {
-      details.preventDefault();
-      onBlocked(details.url);
+  // A non-whitelisted target is only ever released to the network layer when
+  // the loose policy is on AND the target is plain http(s) -- Cloudflare's
+  // filter is the judge in that case. Everything else (filter off, or a
+  // javascript:/file:/data: scheme) is blocked here, synchronously.
+  const isLooseHttpUrl = (url: string): boolean => {
+    if (!getLoosePolicy?.()) return false;
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
     }
+  };
+
+  const strictGuard = (details: NavigationDetails): void => {
+    const targetUrl = details.url;
+    if (isUrlAllowed(targetUrl, getWhitelist())) return;
+    if (isLooseHttpUrl(targetUrl)) return; // Cloudflare judges it downstream
+    details.preventDefault();
+    onBlocked(targetUrl);
   };
 
   const frameGuard = (details: NavigationDetails): void => {
-    if (!isFrameUrlAllowed(details.url, getWhitelist())) {
-      details.preventDefault();
-      onBlocked(details.url);
-    }
+    if (isFrameUrlAllowed(details.url, getWhitelist())) return;
+    // Loose policy: unknown iframe hosts pass through to Cloudflare.
+    if (getLoosePolicy?.()) return;
+    details.preventDefault();
+    onBlocked(details.url);
   };
 
-  // Top-level (main frame) navigation -- strict only.
+  // Top-level (main frame) navigation.
   siteWebContents.on('will-navigate', strictGuard);
 
-  // Server redirects: apply the strict check to the main frame, but let
-  // sub-frame redirects use the frame check too (a YouTube/Google embed often
-  // bounces between subdomains before settling).
+  // Server redirects: main frame goes through the strict check; sub-frame
+  // redirects use the frame check too (a YouTube/Google embed often bounces
+  // between subdomains before settling).
   siteWebContents.on('will-redirect', (details: NavigationDetails) => {
     if (details.isMainFrame) {
       strictGuard(details);
@@ -68,13 +92,12 @@ export function attachNavigationGuard(
     frameGuard(details);
   });
 
-  // Never let a whitelisted site spawn a second OS window/popup. If the
-  // popup target is itself whitelisted, redirect it into the same site view
-  // instead; otherwise show the blocked screen. Either way, always deny the
-  // new-window creation. Strict only -- embed-only hosts must never open as
-  // a browsable page (e.g. YouTube's "Watch on YouTube" link).
+  // Never let a site spawn a second OS window/popup. Whitelisted targets (and
+  // loose-mode http(s) targets, judged by Cloudflare) are redirected into the
+  // same site view instead; anything else shows the blocked screen. Either
+  // way, always deny the new-window creation.
   siteWebContents.setWindowOpenHandler(({ url }) => {
-    if (isUrlAllowed(url, getWhitelist())) {
+    if (isUrlAllowed(url, getWhitelist()) || isLooseHttpUrl(url)) {
       siteWebContents.loadURL(url);
     } else {
       onBlocked(url);

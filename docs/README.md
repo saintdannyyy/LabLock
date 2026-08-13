@@ -192,6 +192,7 @@ Edit `config/whitelist.json`:
       "name": "Google Classroom",
       "url": "https://classroom.google.com",
       "icon": "classroom.png",
+      "allowSubdomains": true,
       "allowedHosts": ["classroom.google.com", "*.google.com"]
     },
     {
@@ -215,6 +216,12 @@ Edit `config/whitelist.json`:
 - `allowedHosts` is optional. **If omitted, only the exact hostname from
   `url` is allowed** — no subdomain access. To allow subdomains, add a
   wildcard rule explicitly, e.g. `"*.google.com"`.
+- `allowSubdomains` (optional boolean, also available per platform in the
+  admin console) is the low-friction way to cover an entire site family:
+  `true` allows the entry's own host **and every `*.host` subdomain**
+  (dot-anchored, same semantics as `"*."`). A single "google.com" entry then
+  covers `docs.google.com`, `drive.google.com`, `meet.google.com`, etc.
+  without the admin listing each.
 
 ### Matching rules (read this before whitelisting a real site)
 
@@ -232,6 +239,9 @@ Edit `config/whitelist.json`:
   `a.b.example.com`) — it does **not** implicitly include the bare
   `example.com` apex. This mirrors TLS wildcard-certificate semantics. List
   both explicitly (`["example.com", "*.example.com"]`) if you need both.
+- `"allowSubdomains": true` is equivalent to listing the entry's host plus
+  `"*.host"` — the apex **and** every subdomain, dot-anchored (so
+  `notgoogle.com` can never match a `google.com` entry).
 - Matching is case-insensitive and scheme-restricted: `javascript:`,
   `file:`, `data:`, `chrome:`, `about:`, and any other non-`http(s)` scheme
   is always blocked, regardless of whitelist content.
@@ -250,13 +260,64 @@ Edit `config/whitelist.json`:
     "disqus.com", "*.disqus.com"]`).
     Test each real site you whitelist end-to-end — sites like Google Classroom
     often span several `*.google.com` subdomains for login/embedded content.
-- **What this does _not_ restrict:** subresource requests (images, scripts,
-  `fetch`/XHR, fonts, CSS) made by an already-loaded whitelisted page. Only
-  _navigation_ (changing what page or frame is displayed) is gated. A
-  whitelisted page can still load third-party assets/trackers in the
+- **What this does _not_ restrict by default:** subresource requests (images,
+  scripts, `fetch`/XHR, fonts, CSS) made by an already-loaded whitelisted
+  page. Only _navigation_ (changing what page or frame is displayed) is
+  gated. A whitelisted page can still load third-party assets/trackers in the
   background; it just can't navigate the visible page/frame to a
-  non-whitelisted host. Full network-level filtering would need
-  `session.webRequest` and isn't part of the product.
+  non-whitelisted host. **With the Cloudflare content filter enabled**
+  (below), those subresource requests and unknown iframe hosts are instead
+  checked against Cloudflare's resolver and cancelled when its policy blocks
+  them.
+
+### Cloudflare content filter (the "loose zone" middle man)
+
+When the filter is enabled, the whitelist becomes the home grid and the
+zero-latency fast path; Cloudflare becomes the real gate. Every http(s)
+request whose host is **not** strictly whitelisted — iframes, third-party
+subresources, and top-level navigation (login redirects to
+`accounts.google.com`, links off an approved page, popups) — is looked up
+against a Cloudflare **DNS-over-HTTPS** resolver and cancelled when its
+policy blocks the host. That's what lets the admin approve one site without
+enumerating every CDN, embed host or auth endpoint, and lets Google/Office
+sign-in work without whitelisting the identity provider.
+
+- **Where it sits:** `session.webRequest.onBeforeRequest` in
+  `src/main/content-filter.ts`. Strictly-whitelisted hosts bypass the lookup
+  entirely, so approved pages see zero extra latency. The navigation guard
+  (`navigation-guard.ts`) releases a non-whitelisted http(s) top-level load
+  to the network layer only while the filter is on; a Cloudflare-cancelled
+  main frame surfaces as `did-fail-load` with `ERR_BLOCKED_BY_CLIENT` and is
+  shown as the normal blocked screen (`window.ts`). Non-http(s) schemes are
+  always blocked synchronously.
+- **Filter off = strict whitelist:** with the filter disabled the guard falls
+  back to the Phase-1 behaviour — only whitelisted hosts can ever load as a
+  page.
+- **Two resolver modes** (`<userData>/filter.json`, admin console → Content
+  Filter tab):
+  - **Families** — the built-in `1.1.1.3` resolver. Zero setup, no account;
+    blocks malware + adult content only. Good out-of-the-box default.
+  - **Zero Trust Gateway** — the admin pastes their
+    `https://<org-id>.cloudflare-gateway.com/dns-query` endpoint. Adds the
+    dashboard-managed categories (**gambling/betting**, weapons, violence,
+    etc.) and centralises policy in the Cloudflare dashboard instead of the
+    kiosk. Free up to 50 users.
+- **Blocked vs nonexistent:** a blocked host is answered with Cloudflare's
+  block markers — `0.0.0.0`/`::` with RCODE 0 under Families, NXDOMAIN (empty
+  answer) under Gateway — so the kiosk can't report _why_ a host was
+  cancelled; the reason lives in the Cloudflare dashboard logs. The admin
+  console has a "Test a domain" box for live verdict checks. DoH is sent as
+  RFC 8484 wire format (`application/dns-message`): the JSON API
+  (`application/dns-json`) on Cloudflare's filtered resolvers serves
+  **unfiltered** answers and is deliberately not used.
+- **Fail-open:** a Cloudflare outage or offline kiosk never bricks approved
+  sites — lookup errors allow the request. Verdicts are cached per host for
+  10 minutes with in-flight coalescing, so only the first request to a new
+  host pays the DoH round-trip. A+AAAA are both checked so AAAA-only hosts
+  aren't false-blocked.
+- **Activity:** blocked hosts are logged once each (kind `filter-block`) to
+  keep the log readable; top-level blocks additionally log kind `blocked`
+  via the blocked screen.
 
 ## Architecture
 
@@ -406,7 +467,9 @@ Run `npm start`, then walk through:
    site work; a lookalike host (`notgoogle-classroom.com`,
    `evilclassroom.google.com.attacker.com`) is blocked, not matched; a true
    subdomain of an exact-match-only entry is blocked; host matching is
-   case-insensitive.
+   case-insensitive. With `allowSubdomains` set on a platform, its subdomains
+   (e.g. `docs.google.com` under a `google.com` entry) load without listing
+   each.
 2. **Scheme blocking** — `javascript:`, `file:`, `data:`, `chrome:` URLs are
    blocked regardless of whitelist content.
 3. **Popups** — `target="_blank"`/`window.open()` to an allowed host loads
@@ -437,6 +500,28 @@ Run `npm start`, then walk through:
    treated as match-all; a missing `icon` field falls back gracefully.
 9. **State preservation** — leaving a site via Home and re-clicking the same
    tile resumes the same view; clicking a different tile does a fresh load.
+
+### Cloudflare content filter
+
+1. **Config UI** — admin console → Content Filter tab shows the filter card;
+   toggling Gateway reveals the DoH URL field; saving reports "Applied live"
+   with no restart.
+2. **Enabled + families** — enable the filter (Families mode), open an
+   approved site that embeds something, and confirm the site still works. A
+   known adult site's asset/embed host (e.g. a `*.tube` ad host) is dropped —
+   check the Activity log for a `filter-block` entry (logged once per host).
+3. **Gateway mode** — paste a Zero Trust Gateway DoH URL (with a policy that
+   blocks gambling), use "Test a domain" against a betting site → "Blocked";
+   a normal educational domain → "Allowed". Malformed / non-Cloudflare URLs
+   are rejected on save.
+4. **Fail-open** — disconnect the network; approved sites still load (no
+   bricked kiosk) and the filter test reports an error rather than a verdict.
+5. **Top-level stays strict** — with the filter on, navigating to a
+   non-whitelisted page still shows the blocked screen; the filter never
+   licenses a browseable page.
+6. **Cache** — the first request to a new third-party host pays one DoH
+   round-trip; repeat requests within 10 minutes hit the cache (watch the
+   filter-block count stay flat while a page with a blocked host reloads).
 
 ### Window lockdown & startup
 
