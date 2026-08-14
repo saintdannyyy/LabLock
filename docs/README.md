@@ -472,7 +472,10 @@ Run `npm start`, then walk through:
    (e.g. `docs.google.com` under a `google.com` entry) load without listing
    each.
 2. **Scheme blocking** — `javascript:`, `file:`, `data:`, `chrome:` URLs are
-   blocked regardless of whitelist content.
+   blocked regardless of whitelist content. `about:blank` / `about:srcdoc`
+   are the one exception: they're inert placeholder documents (iframe initial
+   documents, empty `window.open()` targets) and are always allowed to exist —
+   every navigation out of them still passes through the guards.
 3. **Popups** — `target="_blank"`/`window.open()` to an allowed or
    loose-allowed host opens a small guarded child window (parented to the
    kiosk, destroyed with it) so OAuth flows keep their opener; to a disallowed

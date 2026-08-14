@@ -38,7 +38,9 @@ interface NavigationDetails {
  * Sub-frames follow the same pattern: isFrameUrlAllowed (honoring embedHosts)
  * passes instantly, unknown iframe hosts pass through in loose mode for
  * Cloudflare to judge, and are blocked synchronously when the filter is off.
- * Non-http(s) schemes are always blocked synchronously at every level.
+ * Non-http(s) schemes are always blocked synchronously at every level -- the
+ * one exception is about:blank / about:srcdoc, which carry no content and are
+ * allowed as inert placeholder documents (see isBlankDocument below).
  *
  * window.open()/target=_blank popups are opened as REAL child windows (never
  * redirected into the site view): an OAuth popup (Google Identity Services,
@@ -74,9 +76,27 @@ export function attachNavigationGuard(
     }
   };
 
+  // about:blank / about:srcdoc carry NO content, so there is nothing to filter
+  // -- they're inert placeholders (iframes' initial document, empty
+  // window.open() targets that pages later script or navigate, the hop some
+  // OAuth flows take before window.close()). They are always allowed to EXIST;
+  // every subsequent navigation out of them still goes through the same
+  // guards, so they can never smuggle content past the policy. Allowing them
+  // also stops a site's innocent window.open('about:blank') from flipping the
+  // main kiosk view to the blocked screen.
+  const isBlankDocument = (url: string): boolean => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'about:' && (parsed.pathname === 'blank' || parsed.pathname === 'srcdoc');
+    } catch {
+      return false;
+    }
+  };
+
   const strictGuard = (details: NavigationDetails): void => {
     const targetUrl = details.url;
     if (isUrlAllowed(targetUrl, getWhitelist())) return;
+    if (isBlankDocument(targetUrl)) return;
     if (isLooseHttpUrl(targetUrl)) return; // Cloudflare judges it downstream
     details.preventDefault();
     onBlocked(targetUrl);
@@ -84,6 +104,7 @@ export function attachNavigationGuard(
 
   const frameGuard = (details: NavigationDetails): void => {
     if (isFrameUrlAllowed(details.url, getWhitelist())) return;
+    if (isBlankDocument(details.url)) return;
     // Loose policy: unknown iframe hosts pass through to Cloudflare.
     if (getLoosePolicy?.()) return;
     details.preventDefault();
@@ -120,7 +141,7 @@ export function attachNavigationGuard(
   // Electron's native window.open path (action: 'allow') so window.opener and
   // postMessage to the opener both work inside it.
   siteWebContents.setWindowOpenHandler(({ url }) => {
-    if (isUrlAllowed(url, getWhitelist()) || isLooseHttpUrl(url)) {
+    if (isUrlAllowed(url, getWhitelist()) || isLooseHttpUrl(url) || isBlankDocument(url)) {
       return {
         action: 'allow',
         overrideBrowserWindowOptions: {
