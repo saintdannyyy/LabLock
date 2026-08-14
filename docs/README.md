@@ -332,12 +332,13 @@ One `BrowserWindow` containing three `WebContentsView`s:
 - **Content view** — shows the home grid or the "Site not allowed" screen.
   Has a preload/contextBridge API (`getWhitelist`, `navigateTo`, `goHome`).
 - **Site view** — shows the actual whitelisted external site. Has **no**
-  preload / no exposed API at all, so untrusted page JavaScript has nothing
-  to call into. Navigation is intercepted here via `will-navigate`,
-  `will-redirect`, `will-frame-navigate` (iframes), and
-  `setWindowOpenHandler` (which always denies new windows/popups — an
-  allowed popup target is redirected into the same site view instead of
-  opening a second window).
+   preload / no exposed API at all, so untrusted page JavaScript has nothing
+   to call into. Navigation is intercepted here via `will-navigate`,
+   `will-redirect`, `will-frame-navigate` (iframes), and
+   `setWindowOpenHandler` (which only ever opens a guarded child window for an
+   allowed popup target — the opener relationship must survive so OAuth popup
+   flows like Toddle's "Sign in with Google" can postMessage the token back;
+   a blocked popup target is denied silently).
 
 Clicking Home hides the site view without destroying it, so in-progress
 work in a whitelisted site (e.g. a doc open inside Classroom) survives a
@@ -472,9 +473,10 @@ Run `npm start`, then walk through:
    each.
 2. **Scheme blocking** — `javascript:`, `file:`, `data:`, `chrome:` URLs are
    blocked regardless of whitelist content.
-3. **Popups** — `target="_blank"`/`window.open()` to an allowed host loads
-   in the same pane (no second OS window); to a disallowed host shows the
-   blocked screen with no navigation.
+3. **Popups** — `target="_blank"`/`window.open()` to an allowed or
+   loose-allowed host opens a small guarded child window (parented to the
+   kiosk, destroyed with it) so OAuth flows keep their opener; to a disallowed
+   host it is denied with no navigation and no effect on the main view.
 4. **Iframes** — an iframe pointed at a non-whitelisted host inside an
    otherwise-whitelisted page is blocked.
 5. **Toolbar** — brand shows "HEWStudio"; Back is disabled on the home

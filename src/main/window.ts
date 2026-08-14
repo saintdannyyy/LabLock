@@ -48,6 +48,14 @@ let sidebarView: WebContentsView;
 let contentView: WebContentsView;
 let siteView: WebContentsView;
 let loaderView: WebContentsView;
+
+// Safety net for the loading skeleton: it is normally cleared by
+// did-frame-navigate (main-frame commit) or did-fail-load. If neither fires --
+// e.g. a loadURL queued behind a hung/pending navigation -- drop the overlay
+// once the webContents goes idle so the user is never stuck on a
+// forever-spinner. Never fires while a real load is in flight.
+let loadingWatchdog: ReturnType<typeof setTimeout> | null = null;
+const LOADING_WATCHDOG_MS = 20000;
 let whitelist: WhitelistFile = { sites: [] };
 
 // The live enforcement list is always the ACTIVE profile's web platforms.
@@ -408,7 +416,13 @@ export function createMainWindow(): BrowserWindow {
   loaderView.webContents.loadFile(rendererFile('loading', 'loading.html'));
   loaderView.setVisible(false);
 
-  attachNavigationGuard(siteView.webContents, () => whitelist.sites, showBlocked, () => loadFilterConfig().enabled);
+  attachNavigationGuard(
+    siteView.webContents,
+    () => whitelist.sites,
+    showBlocked,
+    () => loadFilterConfig().enabled,
+    { kiosk: KIOSK, getParentWindow: () => mainWindow },
+  );
 
   // Cloudflare content filter: with the whitelist loosened for embedded
   // content AND top-level navigation (the "loose policy"), this is the middle
@@ -520,7 +534,22 @@ function setPane(next: Pane): void {
   contentView.setVisible(next === 'home' || next === 'blocked' || next === 'profile' || next === 'restricted');
   siteView.setVisible(next === 'site');
   loaderView.setVisible(next === 'loading');
+  if (next !== 'loading') clearLoadingWatchdog();
   pushUiState();
+}
+
+function armLoadingWatchdog(): void {
+  clearLoadingWatchdog();
+  loadingWatchdog = setTimeout(() => {
+    if (pane === 'loading' && !siteView.webContents.isLoading()) setPane('site');
+  }, LOADING_WATCHDOG_MS);
+}
+
+function clearLoadingWatchdog(): void {
+  if (loadingWatchdog) {
+    clearTimeout(loadingWatchdog);
+    loadingWatchdog = null;
+  }
 }
 
 // Reload the content view below the toolbar. The picker (no profile selected
@@ -657,6 +686,7 @@ function restoreLocation(target: BackTarget): void {
       activeSiteUrl = target.url;
       currentLoadedUrl = target.url;
       setPane('loading');
+      armLoadingWatchdog();
       siteView.webContents.loadURL(target.url);
     }
   } else {
@@ -751,6 +781,7 @@ export function navigateToSite(url: string): NavigateResult {
   // Hide the old site immediately and raise the skeleton so the previous page
   // never flashes behind the new one. did-frame-navigate swaps the site back in.
   setPane('loading');
+  armLoadingWatchdog();
   siteView.webContents.loadURL(url);
 
   return { ok: true };
