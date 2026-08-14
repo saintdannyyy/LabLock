@@ -4,19 +4,25 @@
 // addons, use the OS toolchain" constraint.
 //
 // Note on privileges: `netsh wlan` needs elevation for connect/add-profile/
-// delete-profile and Location consent for scans on some Windows builds, so the
-// panel realistically only works when the kiosk runs elevated (a standard
-// child user usually hits "access denied"). Failures are surfaced to the panel
-// as plain error strings, never thrown.
+// delete-profile, and Location consent for scans/show on every Windows build.
+// The consent has THREE independent switches that each deny a console app like
+// netsh: (1) the master "Location services" toggle, (2) "Let apps access your
+// location", and (3) "Let desktop apps access your location" -- the
+// ConsentStore\location\NonPackaged value, which defaults to Deny and trips
+// error 5 EVEN for an elevated process while Windows misleadingly suggests
+// "run as administrator". This module probes elevation and the consent store
+// at failure time so the panel explains the actual culprit instead of the
+// stock netsh boilerplate. Failures are surfaced as plain error strings, never
+// thrown.
 import { execFile } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import type { WifiNetwork, WifiScanResult, WifiActionResult } from '../shared/types';
 
-function runNetsh(args: string[]): Promise<{ code: number; out: string }> {
+function runExe(file: string, args: string[], timeout = 5000): Promise<{ code: number; out: string }> {
   return new Promise((resolve) => {
-    execFile('netsh.exe', args, { windowsHide: true, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, timeout: 20000 }, (error, stdout) => {
+    execFile(file, args, { windowsHide: true, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, timeout }, (error, stdout) => {
       let code = 0;
       if (error) {
         const errorCode = (error as NodeJS.ErrnoException).code;
@@ -25,6 +31,71 @@ function runNetsh(args: string[]): Promise<{ code: number; out: string }> {
       resolve({ code, out: stdout ?? '' });
     });
   });
+}
+
+function runNetsh(args: string[]): Promise<{ code: number; out: string }> {
+  return runExe('netsh.exe', args, 20000);
+}
+
+// Whether THIS process is elevated. Cached: it can't change while the app
+// runs. `net session` exits 0 when elevated and 5 (access denied) otherwise.
+let elevationChecked = false;
+let processElevated = false;
+async function isProcessElevated(): Promise<boolean> {
+  if (!elevationChecked) {
+    processElevated = (await runExe('net.exe', ['session'])).code === 0;
+    elevationChecked = true;
+  }
+  return processElevated;
+}
+
+// Read the current user's Location consent store. The master switch lives in
+// ConsentStore\location; the "desktop apps" switch (the one that gates netsh)
+// lives in ...\location\NonPackaged. Each resolves to true/false when the
+// registry value exists, else null (unknown).
+async function locationConsent(): Promise<{ master: boolean | null; desktopApps: boolean | null }> {
+  const readConsent = async (subKey: string): Promise<boolean | null> => {
+    const res = await runExe('reg.exe', [
+      'query',
+      `HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\location${subKey}`,
+      '/v',
+      'Value',
+    ]);
+    if (res.code !== 0) return null;
+    const match = res.out.match(/REG_SZ\s+(Allow|Deny)/i);
+    if (!match) return null;
+    return /^allow$/i.test(match[1]);
+  };
+  return { master: await readConsent(''), desktopApps: await readConsent('\\NonPackaged') };
+}
+
+// One-time self-heal: the first time an access-denied failure is diagnosed,
+// an ELEVATED kiosk flips the hidden "Let desktop apps access your location"
+// consent (ConsentStore\location\NonPackaged) to Allow so netsh wlan works.
+// Per-user HKCU, no UAC needed, persists for the account -- so no script has
+// to be run on every lab machine. Deliberately skipped for standard (child)
+// users and when the MASTER location switch is off (that one needs a human).
+let consentHealAttempted = false;
+async function ensureDesktopAppsLocationConsent(
+  elevated: boolean,
+  consent: { master: boolean | null; desktopApps: boolean | null },
+): Promise<boolean> {
+  if (consentHealAttempted) return false;
+  consentHealAttempted = true;
+  if (!elevated) return false;
+  if (consent.desktopApps !== false || consent.master === false) return false;
+  const res = await runExe('reg.exe', [
+    'add',
+    'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\location\\NonPackaged',
+    '/v',
+    'Value',
+    '/t',
+    'REG_SZ',
+    '/d',
+    'Allow',
+    '/f',
+  ]);
+  return res.code === 0;
 }
 
 // Parse `netsh wlan show interfaces`: the SSID of the connected network (or
@@ -96,7 +167,7 @@ export async function scanWifi(): Promise<WifiScanResult> {
   if (interfaces.code !== 0 && networks.code !== 0) {
     return {
       ok: false,
-      error: describeNetshFailure(interfaces.out || networks.out, 'Could not scan for Wi-Fi networks.'),
+      error: await describeNetshFailure(interfaces.out || networks.out, 'Could not scan for Wi-Fi networks.'),
       networks: [],
     };
   }
@@ -104,7 +175,7 @@ export async function scanWifi(): Promise<WifiScanResult> {
   if (networks.code !== 0) {
     // The interface may be fine while the scan itself is blocked (elevation /
     // Location consent); surface that instead of silently showing no networks.
-    return { ok: false, error: describeNetshFailure(networks.out, 'Could not scan for Wi-Fi networks.'), networks: [] };
+    return { ok: false, error: await describeNetshFailure(networks.out, 'Could not scan for Wi-Fi networks.'), networks: [] };
   }
 
   const list = parseNetworks(networks.out);
@@ -153,7 +224,7 @@ export async function connectWifi(ssid: string, password: string | null): Promis
   if (profiles.code === 0 && parseSavedProfiles(profiles.out).has(ssid)) {
     const res = await runNetsh(['wlan', 'connect', `name=${ssid}`]);
     if (res.code === 0) return { ok: true };
-    return { ok: false, error: describeNetshFailure(res.out, 'Could not connect to this network.') };
+    return { ok: false, error: await describeNetshFailure(res.out, 'Could not connect to this network.') };
   }
 
   // Determine open-ness from a scan rather than the password.
@@ -176,18 +247,18 @@ export async function connectWifi(ssid: string, password: string | null): Promis
   const add = await runNetsh(['wlan', 'add', 'profile', `filename=${tmp}`, 'user=all']);
   fs.rmSync(tmp, { force: true });
   if (add.code !== 0) {
-    return { ok: false, error: describeNetshFailure(add.out, 'Could not add the Wi-Fi profile.') };
+    return { ok: false, error: await describeNetshFailure(add.out, 'Could not add the Wi-Fi profile.') };
   }
 
   const res = await runNetsh(['wlan', 'connect', `name=${ssid}`]);
   if (res.code === 0) return { ok: true };
-  return { ok: false, error: describeNetshFailure(res.out, 'Could not connect to this network.') };
+  return { ok: false, error: await describeNetshFailure(res.out, 'Could not connect to this network.') };
 }
 
 export async function forgetWifi(ssid: string): Promise<WifiActionResult> {
   const res = await runNetsh(['wlan', 'delete', 'profile', `name=${ssid}`, 'user=all']);
   if (res.code === 0) return { ok: true };
-  return { ok: false, error: describeNetshFailure(res.out, 'Could not forget the network.') };
+  return { ok: false, error: await describeNetshFailure(res.out, 'Could not forget the network.') };
 }
 
 // The first genuinely informative line of a netsh error block (the rest is a
@@ -212,20 +283,35 @@ function firstInformativeLine(out: string): string {
 }
 
 // Friendly, complete failure message for the panel. Access-denied (error 5 /
-// Location consent) and no-adapter cases get a plain-language explanation with
-// the underlying netsh hint appended so the user can see exactly what happened.
-function describeNetshFailure(out: string, fallback: string): string {
+// Location consent) gets a message tailored to what actually blocks the
+// operation: the current process's elevation and the real Location consent
+// switches, probed at failure time -- never the stock "run as administrator"
+// that netsh prints even for an elevated process with a desktop-apps Deny.
+// The underlying netsh hint is always appended so nothing is hidden.
+async function describeNetshFailure(out: string, fallback: string): Promise<string> {
   const reason = firstInformativeLine(out);
   const detail = reason ? ` Windows said: ${reason}` : '';
   if (isAccessDenied(1, out)) {
+    const [elevated, consent] = await Promise.all([isProcessElevated(), locationConsent()]);
+    // Self-heal: an elevated admin kiosk enables the hidden "desktop apps"
+    // location consent once, so the FIRST scan fixes the machine and every
+    // later run just works -- nothing to configure per lab PC.
+    if (await ensureDesktopAppsLocationConsent(elevated, consent)) {
+      return "Wi-Fi control needs the 'Let desktop apps access your location' permission — the kiosk enabled it for this account. Please try again." + detail;
+    }
     const remedies: string[] = [];
-    if (/requires elevation|run as administrator/i.test(out)) remedies.push('run the kiosk as an administrator');
-    if (/location permission|turn on location|privacy-location/i.test(out))
+    if (consent.desktopApps === false) {
+      remedies.push("turn on 'Let desktop apps access your location' (Settings → Privacy & security → Location)");
+    } else if (consent.master === false) {
       remedies.push('turn on Location services (Settings → Privacy & security → Location)');
+    }
+    if (!elevated) {
+      remedies.push('run the kiosk as an administrator');
+    }
     const remedy =
       remedies.length > 0
         ? `Windows is blocking Wi-Fi control — ${remedies.join(', or ')}`
-        : 'Windows is blocking Wi-Fi control — run the kiosk as an administrator (or allow Location access)';
+        : 'Windows is blocking Wi-Fi control — allow Location access for desktop apps (Settings → Privacy & security → Location)';
     return `${remedy}.${detail}`;
   }
   if (/no wireless|no interface|radio.*off|not available/i.test(out)) {
